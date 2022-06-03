@@ -1,1 +1,4 @@
 .DS_Store
+/projects/*/*.out
+/bin/*.dat
+tools/bin/*.dat
