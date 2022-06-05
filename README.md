@@ -12,13 +12,13 @@ I will be using a specification, Hardware Description Language (HDL) to build my
 
 Create the following Chips:
 
-- Not (Inverter): This gate outputs the opposite value of it's input, something like `!true == false` in a programming language.
+- Not (Inverter): This gate outputs the opposite value of it's input, something like `!true == false` in a programming language. `done`
 
-- And: returns 1 when both its inputs are 1, and 0 if they are not.
+- And: returns 1 when both its inputs are 1, and 0 if they are not. `done`
 
-- Or: returns 1 when at least one of its input is 1, and 0 otherwise
+- Or: returns 1 when at least one of its input is 1, and 0 otherwise `done`
 
-- Xor (Exclusive Or): returns 1 when exactly one of its inputs is 1, and 0 otherwise
+- Xor (Exclusive Or): returns 1 when exactly one of its inputs is 1, and 0 otherwise `done`
 
 - Multiplexer: it is a three-input gate, it uses `sel` bit to select and output either of the 2 supplied inputs.
 

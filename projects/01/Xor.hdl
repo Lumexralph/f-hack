@@ -13,5 +13,11 @@ CHIP Xor {
     OUT out;
 
     PARTS:
-    // Put your code here:
+    // Using the Xor truth table, the algebraic expression
+    // is just (Not(a) And b) Or (a And Not(b)).
+    Not (in=a, out=nota);
+    Not (in=b, out=notb);
+    And (a=nota, b=b, out=out1);
+    And (a=a, b=notb, out=out2);
+    Or (a=out1, b=out2, out=out);
 }
