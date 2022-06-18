@@ -20,9 +20,9 @@ Create the following Chips:
 
 - Xor (Exclusive Or): returns 1 when exactly one of its inputs is 1, and 0 otherwise `done`
 
-- Multiplexer: it is a three-input gate, it uses `sel` bit to select and output either of the 2 supplied inputs.
+- Multiplexer: it is a three-input gate, it uses `sel` bit to select and output either of the 2 supplied inputs. `done`
 
-- Demultiplexer: It is the opposite of Multiplexer, it takes a single inout value and routes it to one of two possible outputs according to a selection bit that selects the destination output.
+- Demultiplexer: It is the opposite of Multiplexer, it takes a single inout value and routes it to one of two possible outputs according to a selection bit that selects the destination output. `done`
 
 - 16-bit Not (Not16)
 
