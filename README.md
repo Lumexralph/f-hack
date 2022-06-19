@@ -32,7 +32,7 @@ Create the following Chips:
 
 - 16-bit Multiplexer (Mux16) `done`
 
-- Multi-way Or (Or8Way)
+- Multi-way Or (Or8Way) `done`
 
 - Multi-way Multiplexer (Mux4Way16, Mux8Way16)
 
