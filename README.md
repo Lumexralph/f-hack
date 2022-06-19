@@ -24,9 +24,9 @@ Create the following Chips:
 
 - Demultiplexer: It is the opposite of Multiplexer, it takes a single inout value and routes it to one of two possible outputs according to a selection bit that selects the destination output. `done`
 
-- 16-bit Not (Not16)
+- 16-bit Not (Not16). `done`
 
-- 16-bit And (And16)
+- 16-bit And (And16). `done`
 
 - 16-bit Or (Or16)
 
