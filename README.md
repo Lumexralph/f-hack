@@ -34,7 +34,7 @@ Create the following Chips:
 
 - Multi-way Or (Or8Way) `done`
 
-- Multi-way Multiplexer (Mux4Way16, Mux8Way16)
+- Multi-way Multiplexer (Mux4Way16, Mux8Way16) `done`
 
 - Mult-way Demultiplexer (DMux4Way, DMux8Way)
 
