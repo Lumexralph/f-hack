@@ -36,7 +36,7 @@ Create the following Chips:
 
 - Multi-way Multiplexer (Mux4Way16, Mux8Way16) `done`
 
-- Mult-way Demultiplexer (DMux4Way, DMux8Way)
+- Mult-way Demultiplexer (DMux4Way, DMux8Way) `done`
 
 Implementation: [Project 1](https://github.com/Lumexralph/nand-tetris/tree/main/projects/01)
 
