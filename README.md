@@ -1,6 +1,6 @@
-# Nand-Tetris
+# F-Hack
 
-In the quest to go deeper in the stack(low-level) and do a bottom-up approach, this project contains my implementation of building a 16-bit modern computer systems using Logic Gates / Chips which is what the modern computer architecture is made of.
+In the quest to go deeper in the stack(low-level) and do a bottom-up approach, this project contains my implementation of building a 16-bit modern computer systems called `F-Hack` (Fun Hacking) using Logic Gates / Chips which is what the modern computer architecture is made of.
 
 In the process of studying this amazing book [The Element of Computing Systems](https://www.amazon.co.uk/Elements-Computing-Systems-second-Principles/dp/0262539802/ref=asc_df_0262539802/?tag=googshopuk-21&linkCode=df0&hvadid=430805552339&hvpos=&hvnetw=g&hvrand=1093056745030148753&hvpone=&hvptwo=&hvqmt=&hvdev=c&hvdvcmdl=&hvlocint=&hvlocphy=9046245&hvtargid=pla-918789568003&psc=1&th=1&psc=1&tag=&ref=&adgrpid=101598702938&hvpone=&hvptwo=&hvadid=430805552339&hvpos=&hvnetw=g&hvrand=1093056745030148753&hvqmt=&hvdev=c&hvdvcmdl=&hvlocint=&hvlocphy=9046245&hvtargid=pla-918789568003)
 
@@ -8,7 +8,7 @@ In the process of studying this amazing book [The Element of Computing Systems](
 
 I will be using a specification, Hardware Description Language (HDL) to build my hardware computers using different logic gates combination.
 
-## First Project
+## First Stage
 
 Create the following Chips:
 
@@ -38,6 +38,6 @@ Create the following Chips:
 
 - Mult-way Demultiplexer (DMux4Way, DMux8Way) `done`
 
-Implementation: [Project 1](https://github.com/Lumexralph/nand-tetris/tree/main/projects/01)
+Implementation: [Stage 1](https://github.com/Lumexralph/nand-tetris/tree/main/projects/01)
 
 
