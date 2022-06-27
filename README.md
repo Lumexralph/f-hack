@@ -8,7 +8,7 @@ In the process of studying this amazing book [The Element of Computing Systems](
 
 I will be using a specification, Hardware Description Language (HDL) to build my hardware computers using different logic gates combination.
 
-## First Stage
+## First Stage (Elementary Chips)
 
 Create the following Chips:
 
@@ -40,4 +40,19 @@ Create the following Chips:
 
 Implementation: [Stage 1](https://github.com/Lumexralph/nand-tetris/tree/main/projects/01)
 
+## Second Stage (Adders, Incrementer and Arithemtic Logic Unit (ALU))
 
+- Half-adder: designed to add two bits. `done`
+
+- Full-adder: designed to add three bits.
+
+- Adder: designed to add two n-bit numbers, in our case, our computer word
+size is a 16-bit size.
+
+- Incrementer: A chip that adds 1 to a given number, this chip will be pivotal
+in enabling us to fetch the next instruction in memory after executing the
+currebt one.
+
+- ALU: This chip will be the computational center-piece of our CPU.
+
+Implementation: [Stage 1](https://github.com/Lumexralph/nand-tetris/tree/main/projects/02)
