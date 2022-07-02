@@ -51,7 +51,7 @@ size is a 16-bit size. `done`
 
 - Incrementer: A chip that adds 1 to a given number, this chip will be pivotal
 in enabling us to fetch the next instruction in memory after executing the
-currebt one.
+currebt one. `done`
 
 - ALU: This chip will be the computational center-piece of our CPU.
 
