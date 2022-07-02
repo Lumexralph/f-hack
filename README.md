@@ -44,7 +44,7 @@ Implementation: [Stage 1](https://github.com/Lumexralph/nand-tetris/tree/main/pr
 
 - Half-adder: designed to add two bits. `done`
 
-- Full-adder: designed to add three bits.
+- Full-adder: designed to add three bits. `done`
 
 - Adder: designed to add two n-bit numbers, in our case, our computer word
 size is a 16-bit size.
