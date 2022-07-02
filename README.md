@@ -47,7 +47,7 @@ Implementation: [Stage 1](https://github.com/Lumexralph/nand-tetris/tree/main/pr
 - Full-adder: designed to add three bits. `done`
 
 - Adder: designed to add two n-bit numbers, in our case, our computer word
-size is a 16-bit size.
+size is a 16-bit size. `done`
 
 - Incrementer: A chip that adds 1 to a given number, this chip will be pivotal
 in enabling us to fetch the next instruction in memory after executing the
