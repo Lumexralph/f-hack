@@ -6,6 +6,8 @@
 /**
  * 16-bit incrementer:
  * out = in + 1 (arithmetic addition)
+ *
+ * The overflow bit is ignored.
  */
 
 CHIP Inc16 {
@@ -13,5 +15,7 @@ CHIP Inc16 {
     OUT out[16];
 
     PARTS:
-   // Put you code here:
+    // Generate 1 bit used for the increment: b[0]=true
+
+    Add16 (a=in, b[0]=true, out=out);
 }
