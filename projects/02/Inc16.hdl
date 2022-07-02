@@ -15,8 +15,7 @@ CHIP Inc16 {
     OUT out[16];
 
     PARTS:
-    // Generate 1 bit used for the increment.
-    // Not16 (in=in, out=one);
+    // Generate 1 bit used for the increment: b[0]=true
 
     Add16 (a=in, b[0]=true, out=out);
 }
