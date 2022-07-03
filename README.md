@@ -55,4 +55,4 @@ currebt one. `done`
 
 - ALU: This chip will be the computational center-piece of our CPU.
 
-Implementation: [Stage 1](https://github.com/Lumexralph/nand-tetris/tree/main/projects/02)
+Implementation: [Stage 2](https://github.com/Lumexralph/nand-tetris/tree/main/projects/02)
