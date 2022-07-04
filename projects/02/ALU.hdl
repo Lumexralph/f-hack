@@ -7,7 +7,7 @@
  * The ALU (Arithmetic Logic Unit).
  * Computes one of the following functions:
  * x+y, x-y, y-x, 0, 1, -1, x, y, -x, -y, !x, !y,
- * x+1, y+1, x-1, y-1, x&y, x|y on two 16-bit inputs, 
+ * x+1, y+1, x-1, y-1, x&y, x|y on two 16-bit inputs,
  * according to 6 input bits denoted zx,nx,zy,ny,f,no.
  * In addition, the ALU computes two 1-bit outputs:
  * if the ALU output == 0, zr is set to 1; otherwise zr is set to 0;
@@ -27,8 +27,8 @@
 // if (out < 0) set ng = 1
 
 CHIP ALU {
-    IN  
-        x[16], y[16],  // 16-bit inputs        
+    IN
+        x[16], y[16],  // 16-bit inputs
         zx, // zero the x input?
         nx, // negate the x input?
         zy, // zero the y input?
@@ -36,11 +36,45 @@ CHIP ALU {
         f,  // compute out = x + y (if 1) or x & y (if 0)
         no; // negate the out output?
 
-    OUT 
+    OUT
         out[16], // 16-bit output
         zr, // 1 if (out == 0), 0 otherwise
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+    // zero the x input or not based on control input zx.
+    Mux16 (a=x, b[0..15]=false, sel=zx, out=x1);
+
+    // negate the x input based on nx.
+    Not16 (in=x1, out=negx1);
+    Mux16 (a=x1, b=negx1, sel=nx, out=x2);
+
+    // zero the y input or not based on control input zy.
+    Mux16 (a=y, b[0..15]=false, sel=zy, out=y1);
+
+    // negate the y input based on ny.
+    Not16 (in=y1, out=negy1);
+    Mux16 (a=y1, b=negy1, sel=ny, out=y2);
+
+    // compute out = x + y (if 1) or x & y (if 0)
+    Add16 (a=x2, b=y2, out=addout); // x + y
+    And16 (a=x2, b=y2, out=andout); // x & y
+
+    Mux16 (a=andout, b=addout, sel=f, out=out1);
+
+    // negate the out output based on no bit
+    Not16 (in=out1, out=negout1);
+    Mux16 (a=out1, b=negout1, sel=no, out=out, out[0..7]=lsb8, out[8..15]=msb8, out[15]=msb);
+
+    //-> set the remaining 2 output bits.
+    // 1 if (out == 0), 0 otherwise
+    Or8Way (in=lsb8, out=zr1); // check Least Significant 8 bits
+    Or8Way (in=msb8, out=zr2); // check Most Significant 8 bits
+    Or (a=zr1, b=zr2, out=zr3);
+    Not (in=zr3, out=zr);
+
+    // 1 if the output is negative (out < 0),  0 otherwise.
+    // Knowing that the code of any negative number begins
+    // with a 1 at its Most Significant Bit (MSB) at the left
+    And (a=msb, b=msb, out=ng);
 }

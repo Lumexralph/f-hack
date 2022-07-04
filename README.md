@@ -53,6 +53,6 @@ size is a 16-bit size. `done`
 in enabling us to fetch the next instruction in memory after executing the
 currebt one. `done`
 
-- ALU: This chip will be the computational center-piece of our CPU.
+- ALU: This chip will be the computational center-piece of our CPU. `done`
 
-Implementation: [Stage 1](https://github.com/Lumexralph/nand-tetris/tree/main/projects/02)
+Implementation: [Stage 2](https://github.com/Lumexralph/nand-tetris/tree/main/projects/02)
