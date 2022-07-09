@@ -59,8 +59,8 @@ Implementation: [Stage 2](https://github.com/Lumexralph/nand-tetris/tree/main/pr
 
 ## Third Stage (Memory Chips - Registers, RAM, Counter)
 
-- Registers: (single-bit register (Bit), 16-bit register (Register))
+- Registers: (single-bit register (Bit), 16-bit register (Register)). `done`
 
 - RAM: it is an aggregate of `n` Register chips, by specifying a particular aadress (a number between 0 to `n - 1`), each register in the RAM can be selected and made available for read or write operations
 
-- Program Counter: is a chip that knows to increment its value by 1 each time unit.
+- Program Counter: is a chip that knows how to increment its value by 1 each time unit.
