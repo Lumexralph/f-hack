@@ -56,3 +56,11 @@ currebt one. `done`
 - ALU: This chip will be the computational center-piece of our CPU. `done`
 
 Implementation: [Stage 2](https://github.com/Lumexralph/nand-tetris/tree/main/projects/02)
+
+## Third Stage (Memory Chips - Registers, RAM, Counter)
+
+- Registers: (single-bit register (Bit), 16-bit register (Register))
+
+- RAM: it is an aggregate of `n` Register chips, by specifying a particular aadress (a number between 0 to `n - 1`), each register in the RAM can be selected and made available for read or write operations
+
+- Program Counter: is a chip that knows to increment its value by 1 each time unit.
