@@ -38,7 +38,7 @@ Create the following Chips:
 
 - Mult-way Demultiplexer (DMux4Way, DMux8Way) `done`
 
-Implementation: [Stage 1](https://github.com/Lumexralph/nand-tetris/tree/main/projects/01)
+Implementation: [Elementary Chips](https://github.com/Lumexralph/nand-tetris/tree/main/projects/01)
 
 ## Second Stage (Adders, Incrementer and Arithemtic Logic Unit (ALU))
 
@@ -55,7 +55,7 @@ currebt one. `done`
 
 - ALU: This chip will be the computational center-piece of our CPU. `done`
 
-Implementation: [Stage 2](https://github.com/Lumexralph/nand-tetris/tree/main/projects/02)
+Implementation: [Combinational Chips](https://github.com/Lumexralph/nand-tetris/tree/main/projects/02)
 
 ## Third Stage (Memory Chips - Registers, RAM, Counter)
 
@@ -64,3 +64,5 @@ Implementation: [Stage 2](https://github.com/Lumexralph/nand-tetris/tree/main/pr
 - RAM: it is an aggregate of `n` Register chips, by specifying a particular aadress (a number between 0 to `n - 1`), each register in the RAM can be selected and made available for read or write operations
 
 - Program Counter: is a chip that knows how to increment its value by 1 each time unit.
+
+Implementation: [Memory Chips](https://github.com/Lumexralph/nand-tetris/tree/main/projects/03)
