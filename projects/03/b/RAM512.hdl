@@ -33,7 +33,7 @@ CHIP RAM512 {
     RAM64 (in=in, load=ram6, address=address[0..5], out=ram6out);
     RAM64 (in=in, load=ram7, address=address[0..5], out=ram7out);
 
-    // read the selected 8-bit RAM's output using
+    // read the selected 64-bit RAM's output using
     // the MSB of the address.
     Mux8Way16 (a=ram0out, b=ram1out, c=ram2out,
         d=ram3out, e=ram4out, f=ram5out, g=ram6out,
