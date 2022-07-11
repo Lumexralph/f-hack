@@ -16,5 +16,18 @@ CHIP PC {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // compute the increment if set
+    Inc16 (in=regout1, out=incout);
+
+    Mux8Way16 (a[0..15]=false, b=incout,
+            c=in, d=in,
+            e[0..15]=false, f[0..15]=false,
+            g[0..15]=false, h[0..15]=false,
+            sel[0]=inc, sel[1]=load, sel[2]=reset,
+            out=out1);
+
+    // if any bit of load, inc, reset is set.
+    Or8Way (in[0]=load, in[1]=inc, in[2]=reset, out=out2);
+
+    Register (in=out1, load=out2, out=out, out=regout1);
 }

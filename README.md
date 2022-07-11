@@ -63,6 +63,6 @@ Implementation: [Combinational Chips](https://github.com/Lumexralph/nand-tetris/
 
 - RAM: it is an aggregate of `n` Register chips, by specifying a particular aadress (a number between 0 to `n - 1`), each register in the RAM can be selected and made available for read or write operations
 
-- Program Counter: is a chip that knows how to increment its value by 1 each time unit.
+- Program Counter: is a chip that knows how to increment its value by 1 each time unit. `done`
 
 Implementation: [Memory Chips](https://github.com/Lumexralph/nand-tetris/tree/main/projects/03)
