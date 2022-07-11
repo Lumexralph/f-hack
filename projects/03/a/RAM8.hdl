@@ -11,9 +11,28 @@
  */
 
 CHIP RAM8 {
-    IN in[16], load, address[3];
+    IN in[16], load, address[3]; // register's address
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // select the register to receive data using the address.
+    DMux8Way (in=load, sel=address, a=reg0, b=reg1,
+        c=reg2, d=reg3, e=reg4, f=reg5, g=reg6,
+        h=reg7);
+
+    // Load all the eight 16-bits Registers with the
+    // selected respective register data.
+    Register (in=in, load=reg0, out=reg0out);
+    Register (in=in, load=reg1, out=reg1out);
+    Register (in=in, load=reg2, out=reg2out);
+    Register (in=in, load=reg3, out=reg3out);
+    Register (in=in, load=reg4, out=reg4out);
+    Register (in=in, load=reg5, out=reg5out);
+    Register (in=in, load=reg6, out=reg6out);
+    Register (in=in, load=reg7, out=reg7out);
+
+    // read the selected register's output using the address.
+    Mux8Way16 (a=reg0out, b=reg1out, c=reg2out,
+        d=reg3out, e=reg4out, f=reg5out, g=reg6out,
+        h=reg7out, sel=address, out=out);
 }

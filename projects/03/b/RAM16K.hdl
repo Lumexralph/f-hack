@@ -15,5 +15,20 @@ CHIP RAM16K {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // select the RAM4k chip to pass the input using the
+    // [12..13] address, the two Most Signifcant Bits (MSB).
+    DMux4Way(in=load, sel=address[12..13], a=ram0, b=ram1, c=ram2, d=ram3);
+
+    // Load all the 4 RAM4k with the selected
+    // RAM4k data from the 12 Least Significant Bits
+    // of the address which is the selected RAM4K's address.
+    RAM4K (in=in, load=ram0, address=address[0..11], out=ram0out);
+    RAM4K (in=in, load=ram1, address=address[0..11], out=ram1out);
+    RAM4K (in=in, load=ram2, address=address[0..11], out=ram2out);
+    RAM4K (in=in, load=ram3, address=address[0..11], out=ram3out);
+
+    // read the selected RAM4K's output using
+    // the MSB of the address.
+    Mux4Way16(a=ram0out, b=ram1out, c=ram2out,
+        d=ram3out, sel=address[12..13], out=out);
 }
