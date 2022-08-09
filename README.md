@@ -66,3 +66,15 @@ Implementation: [Combinational Chips](https://github.com/Lumexralph/nand-tetris/
 - Program Counter: is a chip that knows how to increment its value by 1 each time unit. `done`
 
 Implementation: [Memory Chips](https://github.com/Lumexralph/nand-tetris/tree/main/projects/03)
+
+## Fourth Stage (CPU, ROM32K, Screen, Keyboard, Data Memory, Computer Chips)
+
+- CPU Chip: 
+
+- ROM32K: The instruction memory of the computer, where the instruction being executed is stored.
+
+- Screen and Keyboard Chips: 
+
+- Memory Chip
+
+- Computer Chip: 
