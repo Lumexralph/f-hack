@@ -67,14 +67,12 @@ Implementation: [Combinational Chips](https://github.com/Lumexralph/nand-tetris/
 
 Implementation: [Memory Chips](https://github.com/Lumexralph/nand-tetris/tree/main/projects/03)
 
-## Fourth Stage (CPU, ROM32K, Screen, Keyboard, Data Memory, Computer Chips)
+## Fourth Stage (CPU, ROM32K, Data Memory, Computer Chips)
 
 - CPU Chip: 
 
 - ROM32K: The instruction memory of the computer, where the instruction being executed is stored.
 
-- Screen and Keyboard Chips: 
-
-- Memory Chip
+- Memory Chip (RAM16K + Screen + Keyboard Chips) `done`
 
 - Computer Chip: 

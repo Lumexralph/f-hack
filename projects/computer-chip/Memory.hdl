@@ -27,7 +27,7 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // determine whether to load the 16k memory or the screen.
+    // determine whether to load the 16k memory or the screen memorymap.
     DMux (in=load, sel=address[14], a=load1, b=load2);
 
     // address ranges from 0 - 16,383

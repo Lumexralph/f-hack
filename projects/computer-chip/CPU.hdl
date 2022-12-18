@@ -39,5 +39,11 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    Mux16 (a=instruction, b=ALUOut, sel=instruction[15], out=ARegIn);
+    ARegister (in=ARegIn, load=1, out=ARegOut, out=addressM, out=PCIn);
+    Mux16 (a=ARegOut, b=inM, sel=instruction[12], out=ALUIn);
+    DRegister (in=ALUOut, load=, out=DRegOut);
+    ALU (x=, y=, zx=, nx=, zy=, ny=, f=, no=, out=ALUOut, out=outM, zr=, ng=);
+    // TODO: figure out how to combine output of ALU to calculate inc of the PC
+    PC (in=PCIn, load=, inc=, reset=reset, out=pc);
 }
