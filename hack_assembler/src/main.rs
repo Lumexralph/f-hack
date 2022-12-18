@@ -13,7 +13,15 @@ fn main() {
     let args = Args::parse();
 
     if args.path.exists() {
-       // TODO: check file extension is .asm
+        match args.path.extension() {
+            None => {}
+            Some(ext) => {
+                if ext != "asm" {
+                    println!("invalid file format provided {:?}, expected .asm", ext);
+                    return;
+                }
+            }
+        }
 
         let asmbler = assembler::Assembler{ path: args.path };
         match asmbler.read_file() {
