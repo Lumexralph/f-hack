@@ -16,7 +16,10 @@ fn main() {
        // TODO: check file extension is .asm
 
         let asmbler = assembler::Assembler{ path: args.path };
-        asmbler.read_file();
+        match asmbler.read_file() {
+            Ok(_) => { println!("done!")}
+            Err(err) => {println!("err: {err}")}
+        }
     }
 
 }
