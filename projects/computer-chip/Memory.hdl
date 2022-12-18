@@ -27,5 +27,28 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // determine whether to load the 16k memory or the screen memorymap.
+    DMux (in=load, sel=address[14], a=load1, b=load2);
+
+    // address ranges from 0 - 16,383
+    RAM16K (in=in, load=load1, address=address[0..13], out=memout);
+
+    // address ranges from 16,384 - 24,575
+    Screen (in=in, load=load2, address=address[0..12], out=scnout);
+
+    // address 24,575, the remaining addresses are invalid.
+    Keyboard (out=kbdout);
+
+    // output based on the three left MSB (Most Significant Bit) of address.
+    Mux8Way16(
+        a=memout,
+        b=memout,
+        c=memout,
+        d=memout,
+        e=scnout,
+        f=scnout,
+        g=kbdout,
+        sel=address[12..14],
+        out=out
+    );
 }
