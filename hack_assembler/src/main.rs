@@ -23,7 +23,9 @@ fn main() {
             }
         }
 
-        let asmbler = assembler::Assembler{ path: args.path };
+        let mut asmbler = assembler::Assembler::new( args.path );
+        asmbler.initialize();
+
         match asmbler.read_file() {
             Ok(_) => { println!("done!")}
             Err(err) => {println!("err: {err}")}
