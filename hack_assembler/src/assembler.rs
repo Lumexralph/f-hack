@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::collections::HashMap;
+use lazy_static::lazy_static;
+use regex::Regex;
 
 /// Pre-created labels in the symbol table.
 const SP: (&str, u8) = ("SP", 0);
@@ -19,12 +21,23 @@ enum PreCreatedLabel {
     Devices((&'static str, u16)),
 }
 
+// macro_rules! regex {
+//     ($re:expr) => {
+//         Regex::new($re).unwrap()
+//     };
+// }
+
 /// Assembler reads the hack assembly program using
 /// the provided path to the file.
 pub struct Assembler {
     symbol_table: HashMap<String, u16>,
     /// The path to the .asm file to read.
     pub(crate) path: PathBuf,
+}
+
+lazy_static! {
+    // regex match: dest=comp;jump OR dest=comp
+    static ref RE: Regex = Regex::new("^.*?=.*?(;.)?$").unwrap();
 }
 
 impl Assembler {
@@ -75,8 +88,55 @@ impl Assembler {
 
         for line in reader.lines() {
             match line {
-                Ok(content) => { println!("{line_no}: {}", content); }
-                Err(error) => { println!("error: {}", error); }
+                Ok(mut content) => {
+                    // ignore whitespaces and comments.
+                    content = String::from(content.replace(" ", ""));
+                    if content == "" || content.starts_with("//") {
+                        continue
+                    }
+
+                    // remove in-line comments "//"
+                    let refined_content = match content.split_once("//") {
+                        Some((raw_content, _)) => raw_content,
+                        None => content.as_str(),
+                    };
+                    content = refined_content.to_string();
+
+                    if content.starts_with("(") && content.ends_with(")") { // handle A-instructions
+                        let next_instruction_line = line_no+1;
+                        println!("{next_instruction_line} LABEL: {content}");
+                        continue
+                    }
+                    if content.starts_with("@") { // handle A-instructions
+                        println!("{line_no} A-INSTRUCTION: {content}");
+                    }
+
+                    // possibly C-INSTRUCTION or invalid content
+                    if content.contains("=") && RE.is_match(content.as_str())  {
+                        // cut the dest part of content
+                         match content.split_once("=") {
+                            Some((dest, remaining_substr)) => {
+                                println!("{line_no} dest: {dest}");
+                                content = remaining_substr.to_string();
+                            },
+                            None => {},
+                        };
+                    }
+                    if content.contains(";"){
+                         match content.split_once(";") {
+                            Some((comp, jump)) => {
+                                println!("{line_no} comp;jump => {comp};{jump}");
+                                content = comp.to_string();
+                            },
+                            None => {},
+                        };
+                    } else if !content.starts_with("@") && !content.starts_with("("){
+                        // assumes content will be comp if none
+                        // of the dest and jump conditions match.
+                        println!("comp: {content}");
+                    }
+                }
+                Err(error) => { println!("error reading line {line_no}: {}", error); }
             }
             line_no = line_no + 1;
         }
