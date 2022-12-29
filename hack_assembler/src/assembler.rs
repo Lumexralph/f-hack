@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::collections::HashMap;
+use std::ops::Index;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -21,14 +22,123 @@ enum PreCreatedLabel {
     Devices((&'static str, u16)),
 }
 
-// macro_rules! regex {
-//     ($re:expr) => {
-//         Regex::new($re).unwrap()
-//     };
-// }
+/// Parser handles the reading and breaking of the hack asm
+/// instructions into their underlying fields or types.
+///
+/// A_INSTRUCTION for @xxx, xxx is a decimal or symbol (variable or constants).
+/// L_INSTRUCTION for (xxx), where xxx is a symbol.
+/// C_INSTRUCTION for instructions of this format dest=comp;jump.
+pub struct Parser { }
+
+impl Parser {
+    fn new() -> Self {
+        Parser { }
+    }
+
+    /// parse_labels() goes through the entire assembly program line by line,
+    /// it keeps track of line number of code from 0 and is incremented by 1 whenever
+    /// an A_INSTRUCTION or C_INSTRUCTION is found, but does not change when whitespace,
+    /// comments or label declaration is encountered.
+    /// It adds a new entry to the symbol table for label declaration (L_INSTRUCTION),
+    /// associating the symbol with the current line number + 1 (this will be the ROM address
+    /// of the next instruction in the program). No binary code is generated.
+    fn parse_labels(&self, reader: BufReader<File>, symbol_table: &HashMap<String, u16>) {
+        let mut line_no = 0;
+
+        for line in reader.lines() {
+            match line {
+                Ok(mut content) => {
+                    // ignore whitespaces and comments.
+                    content = String::from(content.replace(" ", ""));
+                    if content == "" || content.starts_with("//") {
+                        continue
+                    }
+
+                    // remove in-line comments "//"
+                    content = match content.split_once("//") {
+                        Some((raw_content, _)) => raw_content.to_string(),
+                        None => content,
+                    };
+
+                    // handle L_INSTRUCTION
+                    if content.starts_with("(") && content.ends_with(")") {
+                        let label = content.index(1);
+                        println!("{} L_INSTRUCTION: {content}", line_no+1);
+                        continue
+                    }
+
+                    // Assumes the remaining instructions are C  and A INSTRUCTIONS.
+                    line_no = line_no + 1;
+                }
+                Err(error) => { println!("error reading line {line_no}: {}", error); }
+            }
+        }
+   }
+
+   fn parse_instructions(&self) {
+       // for line in reader.lines() {
+       //     match line {
+       //         Ok(mut content) => {
+       //             // ignore whitespaces and comments.
+       //             content = String::from(content.replace(" ", ""));
+       //             if content == "" || content.starts_with("//") {
+       //                 continue
+       //             }
+       //
+       //             // remove in-line comments "//"
+       //             let refined_content = match content.split_once("//") {
+       //                 Some((raw_content, _)) => raw_content,
+       //                 None => content.as_str(),
+       //             };
+       //             content = refined_content.to_string();
+       //
+       //             if content.starts_with("(") && content.ends_with(")") { // handle A-instructions
+       //                 let next_instruction_line = line_no+1;
+       //                 println!("{next_instruction_line} LABEL: {content}");
+       //                 continue
+       //             }
+       //             if content.starts_with("@") { // handle A-instructions
+       //                 println!("{line_no} A-INSTRUCTION: {content}");
+       //             }
+       //
+       //             // possibly C-INSTRUCTION or invalid content
+       //             if content.contains("=") && RE.is_match(content.as_str())  {
+       //                 // cut the dest part of content
+       //                 match content.split_once("=") {
+       //                     Some((dest, remaining_substr)) => {
+       //                         println!("{line_no} dest: {dest}");
+       //                         content = remaining_substr.to_string();
+       //                     },
+       //                     None => {},
+       //                 };
+       //             }
+       //             if content.contains(";"){
+       //                 match content.split_once(";") {
+       //                     Some((comp, jump)) => {
+       //                         println!("{line_no} comp;jump => {comp};{jump}");
+       //                         content = comp.to_string();
+       //                     },
+       //                     None => {},
+       //                 };
+       //             } else if !content.starts_with("@") && !content.starts_with("("){
+       //                 // assumes content will be comp if none
+       //                 // of the dest and jump conditions match.
+       //                 println!("comp: {content}");
+       //             }
+       //         }
+       //         Err(error) => { println!("error reading line {line_no}: {}", error); }
+       //     }
+       //     line_no = line_no + 1;
+       // }
+   }
+}
 
 /// Assembler reads the hack assembly program using
 /// the provided path to the file.
+/// It is a two-pass assembler that reads the code twice
+/// from start to end (needed because of some symbols that
+/// can be used before defined or initialized, they are pre-initialized
+/// before the actual binary code is generated).
 pub struct Assembler {
     symbol_table: HashMap<String, u16>,
     /// The path to the .asm file to read.
@@ -84,62 +194,8 @@ impl Assembler {
     pub fn read_file(&self) -> std::io::Result<()> {
         let f = File::open(&self.path)?;
         let reader = BufReader::new(f);
-        let mut line_no = 0;
-
-        for line in reader.lines() {
-            match line {
-                Ok(mut content) => {
-                    // ignore whitespaces and comments.
-                    content = String::from(content.replace(" ", ""));
-                    if content == "" || content.starts_with("//") {
-                        continue
-                    }
-
-                    // remove in-line comments "//"
-                    let refined_content = match content.split_once("//") {
-                        Some((raw_content, _)) => raw_content,
-                        None => content.as_str(),
-                    };
-                    content = refined_content.to_string();
-
-                    if content.starts_with("(") && content.ends_with(")") { // handle A-instructions
-                        let next_instruction_line = line_no+1;
-                        println!("{next_instruction_line} LABEL: {content}");
-                        continue
-                    }
-                    if content.starts_with("@") { // handle A-instructions
-                        println!("{line_no} A-INSTRUCTION: {content}");
-                    }
-
-                    // possibly C-INSTRUCTION or invalid content
-                    if content.contains("=") && RE.is_match(content.as_str())  {
-                        // cut the dest part of content
-                         match content.split_once("=") {
-                            Some((dest, remaining_substr)) => {
-                                println!("{line_no} dest: {dest}");
-                                content = remaining_substr.to_string();
-                            },
-                            None => {},
-                        };
-                    }
-                    if content.contains(";"){
-                         match content.split_once(";") {
-                            Some((comp, jump)) => {
-                                println!("{line_no} comp;jump => {comp};{jump}");
-                                content = comp.to_string();
-                            },
-                            None => {},
-                        };
-                    } else if !content.starts_with("@") && !content.starts_with("("){
-                        // assumes content will be comp if none
-                        // of the dest and jump conditions match.
-                        println!("comp: {content}");
-                    }
-                }
-                Err(error) => { println!("error reading line {line_no}: {}", error); }
-            }
-            line_no = line_no + 1;
-        }
+        let parser = Parser::new();
+        parser.parse_labels(reader, &self.symbol_table);
 
         Ok(())
     }
