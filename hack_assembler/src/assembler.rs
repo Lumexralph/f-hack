@@ -81,12 +81,15 @@ impl Parser {
     /// A and C INSTRUCTIONS and generates the binary code that will be sent
     /// to the computer processor.
     fn parse_instructions(&self, reader: BufReader<File>, symbol_table: &mut HashMap<String, u16>) {
+        let mut line_no = 0;
+
         for line in reader.lines() {
             match line {
                 Ok(mut content) => {
-                    // ignore whitespaces and comments.
                     content = String::from(content.replace(" ", ""));
-                    if content == "" || content.starts_with("//") {
+
+                    // ignore whitespace, comment and labels (L_INSTRUCTIONS)
+                    if content == "" || content.starts_with("//") || content.starts_with("(") {
                         continue;
                     }
 
@@ -97,12 +100,8 @@ impl Parser {
                     };
                     content = refined_content.to_string();
 
-                    if content.starts_with("(") && content.ends_with(")") {
-                        // handle A-instructions
-                        let next_instruction_line = line_no + 1;
-                        println!("{next_instruction_line} LABEL: {content}");
-                        continue;
-                    }
+                    // Assumes only A and C INSTRUCTIONS are left after the
+                    // the ignored contents above i.e. comments, whitespace and labels
                     if content.starts_with("@") {
                         // handle A-instructions
                         println!("{line_no} A-INSTRUCTION: {content}");
@@ -132,6 +131,7 @@ impl Parser {
                         // of the dest and jump conditions match.
                         println!("comp: {content}");
                     }
+                    line_no = line_no + 1;
                 }
                 Err(error) => {
                     println!("error reading line {line_no}: {}", error);
