@@ -1,10 +1,12 @@
-use lazy_static::lazy_static;
-use regex::Regex;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io;
+use std::io::{BufRead, BufReader, Seek};
 use std::ops::Index;
 use std::path::PathBuf;
+
+use lazy_static::lazy_static;
+use regex::Regex;
 
 /// Pre-created labels in the symbol table.
 const SP: (&str, u8) = ("SP", 0);
@@ -18,7 +20,7 @@ const KBD: (&str, u16) = ("KBD", 24576); // Keyboard
 #[derive(Debug)]
 enum PreCreatedLabel {
     Special((&'static str, u8)),
-    /// For SCREEN, KBD (Keyboard)
+    // For SCREEN, KBD (Keyboard)
     Devices((&'static str, u16)),
 }
 
@@ -28,11 +30,27 @@ enum PreCreatedLabel {
 /// A_INSTRUCTION for @xxx, xxx is a decimal or symbol (variable or constants).
 /// L_INSTRUCTION for (xxx), where xxx is a symbol.
 /// C_INSTRUCTION for instructions of this format dest=comp;jump.
-pub struct Parser {}
+pub struct Parser {
+    file_reader: Box<BufReader<File>>,
+}
 
 impl Parser {
-    fn new() -> Self {
-        Parser {}
+    fn new(reader: BufReader<File>) -> Self {
+        Parser {
+            file_reader: Box::new(reader),
+        }
+    }
+
+    // reset_file_reader rewinds the file buffer because it can be read by another
+    // method and the file offset won't be at the beginning of the file.
+    fn reset_file_reader(&mut self) -> Result<(), io::Error> {
+        match self.file_reader.rewind() {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                println!("error rewinding the file buffer {err}");
+                Err(err)
+            }
+        }
     }
 
     /// parse_labels() goes through the entire assembly program line by line,
@@ -42,27 +60,32 @@ impl Parser {
     /// It adds a new entry to the symbol table for label declaration (L_INSTRUCTION),
     /// associating the symbol with the current line number + 1 (this will be the ROM address
     /// of the next instruction in the program). No binary code is generated.
-    fn parse_labels(&self, reader: BufReader<File>, symbol_table: &mut HashMap<String, u16>) {
+    fn parse_labels(&mut self, symbol_table: &mut HashMap<String, u16>) {
         let mut line_no = 0;
+        if let Err(err) = self.reset_file_reader() {
+            // TODO: handle the error, propagate the error.
+            println!("reset_file_reader(): {err}");
+        }
 
+        let reader = &mut self.file_reader;
         for line in reader.lines() {
             match line {
                 Ok(mut content) => {
-                    // ignore whitespaces and comments.
+                    // Ignore whitespaces and comments.
                     content = String::from(content.replace(" ", ""));
                     if content == "" || content.starts_with("//") {
                         continue;
                     }
 
-                    // remove in-line comments "//"
+                    // Remove in-line comments "//"
                     content = match content.split_once("//") {
                         Some((raw_content, _)) => raw_content.to_string(),
                         None => content,
                     };
 
-                    // handle L_INSTRUCTION
+                    // Handle L_INSTRUCTION
                     if content.starts_with("(") && content.ends_with(")") {
-                        let label = content.index(1..content.len() - 1);
+                        let label = &content[1..content.len() - 1];
                         println!("{} L_INSTRUCTION: {label}", line_no + 1);
                         symbol_table.insert(label.to_string(), line_no + 1);
                     } else {
@@ -80,20 +103,24 @@ impl Parser {
     /// parse_instructions reads the entire assembly code again, it handles the
     /// A and C INSTRUCTIONS and generates the binary code that will be sent
     /// to the computer processor.
-    fn parse_instructions(&self, reader: BufReader<File>, symbol_table: &mut HashMap<String, u16>) {
+    fn parse_instructions(&mut self, symbol_table: &mut HashMap<String, u16>) {
         let mut line_no = 0;
+        if let Err(err) = self.reset_file_reader() {
+            // TODO: handle the error, propagate the error.
+            println!("reset_file_reader(): {err}");
+        }
 
+        let reader = &mut self.file_reader;
         for line in reader.lines() {
             match line {
                 Ok(mut content) => {
                     content = String::from(content.replace(" ", ""));
-
-                    // ignore whitespace, comment and labels (L_INSTRUCTIONS)
+                    // Ignore whitespace, comment and labels (L_INSTRUCTIONS)
                     if content == "" || content.starts_with("//") || content.starts_with("(") {
                         continue;
                     }
 
-                    // remove in-line comments "//"
+                    // Remove in-line comments "//"
                     let refined_content = match content.split_once("//") {
                         Some((raw_content, _)) => raw_content,
                         None => content.as_str(),
@@ -101,15 +128,17 @@ impl Parser {
                     content = refined_content.to_string();
 
                     // Assumes only A and C INSTRUCTIONS are left after the
-                    // the ignored contents above i.e. comments, whitespace and labels
+                    // the ignored contents above i.e. comments, whitespace and labels.
                     if content.starts_with("@") {
-                        // handle A-instructions
-                        println!("{line_no} A-INSTRUCTION: {content}");
+                        // Handle A-instructions
+                        let instruction = &content[1..];
+                        println!("{line_no} A-INSTRUCTION: {instruction}");
+                        continue;
                     }
 
-                    // possibly C-INSTRUCTION or invalid content
+                    // Possibly C-INSTRUCTION or invalid content.
                     if content.contains("=") && RE.is_match(content.as_str()) {
-                        // cut the dest part of content
+                        // Cut the dest part of content.
                         match content.split_once("=") {
                             Some((dest, remaining_substr)) => {
                                 println!("{line_no} dest: {dest}");
@@ -126,8 +155,8 @@ impl Parser {
                             }
                             None => {}
                         };
-                    } else if !content.starts_with("@") && !content.starts_with("(") {
-                        // assumes content will be comp if none
+                    } else {
+                        // Assumes content will be comp if none
                         // of the dest and jump conditions match.
                         println!("comp: {content}");
                     }
@@ -154,7 +183,7 @@ pub struct Assembler {
 }
 
 lazy_static! {
-    // regex match: dest=comp;jump OR dest=comp
+    // Regex match: dest=comp;jump OR dest=comp
     static ref RE: Regex = Regex::new("^.*?=.*?(;.)?$").unwrap();
 }
 
@@ -185,7 +214,7 @@ impl Assembler {
             PreCreatedLabel::Devices(KBD),
         ];
 
-        // add special labels to the symbol table.
+        // Add special labels to the symbol table.
         for label in &special_labels {
             match label {
                 PreCreatedLabel::Special(label) => self
@@ -196,14 +225,14 @@ impl Assembler {
                 }
             };
         }
-        println!("{:?}", self.symbol_table);
     }
 
     pub fn read_file(&mut self) -> std::io::Result<()> {
         let f = File::open(&self.path)?;
         let reader = BufReader::new(f);
-        let parser = Parser::new();
-        parser.parse_labels(reader, &mut self.symbol_table);
+        let mut parser = Parser::new(reader);
+        parser.parse_labels(&mut self.symbol_table);
+        parser.parse_instructions(&mut self.symbol_table);
 
         println!("{:?}", self.symbol_table);
         Ok(())
