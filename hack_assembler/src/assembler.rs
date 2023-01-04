@@ -24,6 +24,12 @@ enum PreCreatedLabel {
     Devices((&'static str, u16)),
 }
 
+lazy_static! {
+    // Regex match: dest=comp;jump OR dest=comp
+    static ref RE: Regex = Regex::new("^.*?=.*?(;.)?$").unwrap();
+    static ref NUM_RE: Regex = Regex::new("@^[0-9]+$").unwrap();
+}
+
 /// Parser handles the reading and breaking of the hack asm
 /// instructions into their underlying fields or types.
 ///
@@ -131,8 +137,12 @@ impl Parser {
                     // the ignored contents above i.e. comments, whitespace and labels.
                     if content.starts_with("@") {
                         // Handle A-instructions
-                        let instruction = &content[1..];
-                        println!("{line_no} A-INSTRUCTION: {instruction}");
+                        let a_instruction = &content[1..];
+                        if NUM_RE.is_match(a_instruction) {
+                            println!("{line_no} A-INSTRUCTION (number): {a_instruction}");
+                        } else {
+                            println!("{line_no} A-INSTRUCTION (symbol): {a_instruction}");
+                        }
                         continue;
                     }
 
@@ -180,11 +190,6 @@ pub struct Assembler {
     symbol_table: HashMap<String, u16>,
     /// The path to the .asm file to read.
     pub(crate) path: PathBuf,
-}
-
-lazy_static! {
-    // Regex match: dest=comp;jump OR dest=comp
-    static ref RE: Regex = Regex::new("^.*?=.*?(;.)?$").unwrap();
 }
 
 impl Assembler {
