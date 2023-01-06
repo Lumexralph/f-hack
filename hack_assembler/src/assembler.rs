@@ -27,7 +27,7 @@ enum PreCreatedLabel {
 lazy_static! {
     // Regex match: dest=comp;jump OR dest=comp
     static ref RE: Regex = Regex::new("^.*?=.*?(;.)?$").unwrap();
-    static ref NUM_RE: Regex = Regex::new("@^[0-9]+$").unwrap();
+    static ref NUM_RE: Regex = Regex::new("^[0-9]+$").unwrap();
 }
 
 /// Parser handles the reading and breaking of the hack asm
@@ -111,6 +111,7 @@ impl Parser {
     /// to the computer processor.
     fn parse_instructions(&mut self, symbol_table: &mut HashMap<String, u16>) {
         let mut line_no = 0;
+        let mut variable_address = 16;
         if let Err(err) = self.reset_file_reader() {
             // TODO: handle the error, propagate the error.
             println!("reset_file_reader(): {err}");
@@ -141,7 +142,25 @@ impl Parser {
                         if NUM_RE.is_match(a_instruction) {
                             println!("{line_no} A-INSTRUCTION (number): {a_instruction}");
                         } else {
-                            println!("{line_no} A-INSTRUCTION (symbol): {a_instruction}");
+                            match symbol_table.get(a_instruction) {
+                                Some(value) => {
+                                    // TODO: create the binary instruction of the value
+                                    println!(
+                                        "{line_no}: variable already initialized {}:{}",
+                                        a_instruction, value
+                                    )
+                                }
+                                None => {
+                                    //TODO: You need to check if the new variable location is not SCREEN or KBD
+                                    // Initialize the new variable and increase the variable address.
+                                    symbol_table
+                                        .insert(a_instruction.to_string(), variable_address);
+                                    println!("{line_no} A-INSTRUCTION (symbol: new variable): {a_instruction}: {variable_address}");
+                                    // TODO: create the binary instruction of the value (variable_address)
+
+                                    variable_address += 1;
+                                }
+                            }
                         }
                         continue;
                     }
