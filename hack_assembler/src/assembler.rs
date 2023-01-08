@@ -39,6 +39,10 @@ lazy_static! {
 pub struct Parser<'a> {
     file_reader: Box<BufReader<File>>,
     symbol_table: &'a mut HashMap<String, u16>,
+    // Variable address starts from 16 and it is incremented
+    // by 1 whenever another variable is encountered.
+    variable_address: u16,
+    instruction_line_no: u16,
 }
 
 impl<'a> Parser<'a> {
@@ -46,6 +50,8 @@ impl<'a> Parser<'a> {
         Parser {
             file_reader: Box::new(reader),
             symbol_table: table,
+            variable_address: 16,
+            instruction_line_no: 0,
         }
     }
 
@@ -69,7 +75,6 @@ impl<'a> Parser<'a> {
     /// associating the symbol with the current line number + 1 (this will be the ROM address
     /// of the next instruction in the program). No binary code is generated.
     fn parse_labels(&mut self) {
-        let mut line_no = 0;
         if let Err(err) = self.reset_file_reader() {
             // TODO: handle the error, propagate the error.
             println!("reset_file_reader(): {err}");
@@ -94,15 +99,16 @@ impl<'a> Parser<'a> {
                     // Handle L_INSTRUCTION
                     if content.starts_with("(") && content.ends_with(")") {
                         let label = &content[1..content.len() - 1];
-                        println!("{} L_INSTRUCTION: {label}", line_no + 1);
-                        self.symbol_table.insert(label.to_string(), line_no + 1);
+                        println!("{} L_INSTRUCTION: {label}", self.instruction_line_no + 1);
+                        self.symbol_table
+                            .insert(label.to_string(), self.instruction_line_no + 1);
                     } else {
                         // Assumes the remaining instructions are C  and A INSTRUCTIONS.
-                        line_no = line_no + 1;
+                        self.instruction_line_no = self.instruction_line_no + 1;
                     }
                 }
                 Err(error) => {
-                    println!("error reading line {line_no}: {}", error);
+                    println!("error reading line {}: {}", self.instruction_line_no, error);
                 }
             }
         }
@@ -112,15 +118,13 @@ impl<'a> Parser<'a> {
     /// A and C INSTRUCTIONS and generates the binary code that will be sent
     /// to the computer processor.
     fn parse_instructions(&mut self) {
-        let mut line_no = 0;
-        let mut variable_address = 16;
+        self.instruction_line_no = 0;
         if let Err(err) = self.reset_file_reader() {
             // TODO: handle the error, propagate the error.
             println!("reset_file_reader(): {err}");
         }
 
-        let reader = &mut self.file_reader;
-        for line in reader.lines() {
+        for line in self.file_reader.as_mut().lines() {
             match line {
                 Ok(mut content) => {
                     content = String::from(content.replace(" ", ""));
@@ -139,31 +143,7 @@ impl<'a> Parser<'a> {
                     // Assumes only A and C INSTRUCTIONS are left after the
                     // the ignored contents above i.e. comments, whitespace and labels.
                     if content.starts_with("@") {
-                        // Handle A-instructions
-                        let a_instruction = &content[1..];
-                        if NUM_RE.is_match(a_instruction) {
-                            println!("{line_no} A-INSTRUCTION (number): {a_instruction}");
-                        } else {
-                            match self.symbol_table.get(a_instruction) {
-                                Some(value) => {
-                                    // TODO: create the binary instruction of the value
-                                    println!(
-                                        "{line_no}: variable already initialized {}:{}",
-                                        a_instruction, value
-                                    )
-                                }
-                                None => {
-                                    //TODO: You need to check if the new variable location is not SCREEN or KBD
-                                    // Initialize the new variable and increase the variable address.
-                                    self.symbol_table
-                                        .insert(a_instruction.to_string(), variable_address);
-                                    println!("{line_no} A-INSTRUCTION (symbol: new variable): {a_instruction}: {variable_address}");
-                                    // TODO: create the binary instruction of the value (variable_address)
-
-                                    variable_address += 1;
-                                }
-                            }
-                        }
+                        self.decode_a_instructions(content);
                         continue;
                     }
 
@@ -172,7 +152,7 @@ impl<'a> Parser<'a> {
                         // Cut the dest part of content.
                         match content.split_once("=") {
                             Some((dest, remaining_substr)) => {
-                                println!("{line_no} dest: {dest}");
+                                println!("{} dest: {dest}", self.instruction_line_no);
                                 content = remaining_substr.to_string();
                             }
                             None => {}
@@ -181,7 +161,7 @@ impl<'a> Parser<'a> {
                     if content.contains(";") {
                         match content.split_once(";") {
                             Some((comp, jump)) => {
-                                println!("{line_no} comp;jump => {comp};{jump}");
+                                println!("{} comp;jump => {comp};{jump}", self.instruction_line_no);
                                 content = comp.to_string();
                             }
                             None => {}
@@ -191,10 +171,44 @@ impl<'a> Parser<'a> {
                         // of the dest and jump conditions match.
                         println!("comp: {content}");
                     }
-                    line_no = line_no + 1;
+                    self.instruction_line_no = self.instruction_line_no + 1;
                 }
                 Err(error) => {
-                    println!("error reading line {line_no}: {}", error);
+                    println!("error reading line {}: {}", self.instruction_line_no, error);
+                }
+            }
+        }
+    }
+
+    fn decode_a_instructions(&mut self, content: String) {
+        // Handle A-instructions
+        let a_instruction = &content[1..];
+        if NUM_RE.is_match(a_instruction) {
+            println!(
+                "{} A-INSTRUCTION (number): {a_instruction}",
+                self.instruction_line_no
+            );
+        } else {
+            match self.symbol_table.get(a_instruction) {
+                Some(value) => {
+                    // TODO: create the binary instruction of the value
+                    println!(
+                        "{}: variable already initialized {}:{}",
+                        self.instruction_line_no, a_instruction, value
+                    )
+                }
+                None => {
+                    //TODO: You need to check if the new variable location is not SCREEN or KBD
+                    // Initialize the new variable and increase the variable address.
+                    self.symbol_table
+                        .insert(a_instruction.to_string(), self.variable_address);
+                    println!(
+                        "{} A-INSTRUCTION (symbol: new variable): {a_instruction}: {}",
+                        self.instruction_line_no, self.variable_address
+                    );
+                    // TODO: create the binary instruction of the value (variable_address)
+
+                    self.variable_address += 1;
                 }
             }
         }
@@ -254,7 +268,7 @@ impl Assembler {
         }
     }
 
-    pub fn read_file(&mut self) -> std::io::Result<()> {
+    pub fn read_file(&mut self) -> io::Result<()> {
         let f = File::open(&self.path)?;
         let reader = BufReader::new(f);
         let mut parser = Parser::new(reader, &mut self.symbol_table);
