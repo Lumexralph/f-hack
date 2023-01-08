@@ -36,14 +36,16 @@ lazy_static! {
 /// A_INSTRUCTION for @xxx, xxx is a decimal or symbol (variable or constants).
 /// L_INSTRUCTION for (xxx), where xxx is a symbol.
 /// C_INSTRUCTION for instructions of this format dest=comp;jump.
-pub struct Parser {
+pub struct Parser<'a> {
     file_reader: Box<BufReader<File>>,
+    symbol_table: &'a mut HashMap<String, u16>,
 }
 
-impl Parser {
-    fn new(reader: BufReader<File>) -> Self {
+impl<'a> Parser<'a> {
+    fn new(reader: BufReader<File>, table: &'a mut HashMap<String, u16>) -> Self {
         Parser {
             file_reader: Box::new(reader),
+            symbol_table: table,
         }
     }
 
@@ -66,7 +68,7 @@ impl Parser {
     /// It adds a new entry to the symbol table for label declaration (L_INSTRUCTION),
     /// associating the symbol with the current line number + 1 (this will be the ROM address
     /// of the next instruction in the program). No binary code is generated.
-    fn parse_labels(&mut self, symbol_table: &mut HashMap<String, u16>) {
+    fn parse_labels(&mut self) {
         let mut line_no = 0;
         if let Err(err) = self.reset_file_reader() {
             // TODO: handle the error, propagate the error.
@@ -93,7 +95,7 @@ impl Parser {
                     if content.starts_with("(") && content.ends_with(")") {
                         let label = &content[1..content.len() - 1];
                         println!("{} L_INSTRUCTION: {label}", line_no + 1);
-                        symbol_table.insert(label.to_string(), line_no + 1);
+                        self.symbol_table.insert(label.to_string(), line_no + 1);
                     } else {
                         // Assumes the remaining instructions are C  and A INSTRUCTIONS.
                         line_no = line_no + 1;
@@ -109,7 +111,7 @@ impl Parser {
     /// parse_instructions reads the entire assembly code again, it handles the
     /// A and C INSTRUCTIONS and generates the binary code that will be sent
     /// to the computer processor.
-    fn parse_instructions(&mut self, symbol_table: &mut HashMap<String, u16>) {
+    fn parse_instructions(&mut self) {
         let mut line_no = 0;
         let mut variable_address = 16;
         if let Err(err) = self.reset_file_reader() {
@@ -142,7 +144,7 @@ impl Parser {
                         if NUM_RE.is_match(a_instruction) {
                             println!("{line_no} A-INSTRUCTION (number): {a_instruction}");
                         } else {
-                            match symbol_table.get(a_instruction) {
+                            match self.symbol_table.get(a_instruction) {
                                 Some(value) => {
                                     // TODO: create the binary instruction of the value
                                     println!(
@@ -153,7 +155,7 @@ impl Parser {
                                 None => {
                                     //TODO: You need to check if the new variable location is not SCREEN or KBD
                                     // Initialize the new variable and increase the variable address.
-                                    symbol_table
+                                    self.symbol_table
                                         .insert(a_instruction.to_string(), variable_address);
                                     println!("{line_no} A-INSTRUCTION (symbol: new variable): {a_instruction}: {variable_address}");
                                     // TODO: create the binary instruction of the value (variable_address)
@@ -206,6 +208,7 @@ impl Parser {
 /// can be used before defined or initialized, they are pre-initialized
 /// before the actual binary code is generated).
 pub struct Assembler {
+    // HashMap<symbol, address>
     symbol_table: HashMap<String, u16>,
     /// The path to the .asm file to read.
     pub(crate) path: PathBuf,
@@ -223,9 +226,9 @@ impl Assembler {
     /// initialize() creates a symbol table and initializes it with
     /// all the predefined symbols and their pre-allocated values.
     pub fn initialize(&mut self) {
-        // pre-create R0 -> R15.
-        for value in 0..=15 {
-            self.symbol_table.insert(format!("R{value}"), value);
+        // Pre-create R0 -> R15 registers.
+        for address in 0..=15 {
+            self.symbol_table.insert(format!("R{address}"), address);
         }
 
         let special_labels = vec![
@@ -254,9 +257,9 @@ impl Assembler {
     pub fn read_file(&mut self) -> std::io::Result<()> {
         let f = File::open(&self.path)?;
         let reader = BufReader::new(f);
-        let mut parser = Parser::new(reader);
-        parser.parse_labels(&mut self.symbol_table);
-        parser.parse_instructions(&mut self.symbol_table);
+        let mut parser = Parser::new(reader, &mut self.symbol_table);
+        parser.parse_labels();
+        parser.parse_instructions();
 
         println!("{:?}", self.symbol_table);
         Ok(())
