@@ -1,7 +1,8 @@
+use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
-use std::io::{BufRead, BufReader, Seek};
+use std::io::{BufRead, BufReader, Read, Seek};
 use std::ops::Index;
 use std::path::PathBuf;
 
@@ -37,7 +38,7 @@ lazy_static! {
 /// L_INSTRUCTION for (xxx), where xxx is a symbol.
 /// C_INSTRUCTION for instructions of this format dest=comp;jump.
 pub struct Parser<'a> {
-    file_reader: Box<BufReader<File>>,
+    file_reader: BufReader<File>,
     symbol_table: &'a mut HashMap<String, u16>,
     // Variable address starts from 16 and it is incremented
     // by 1 whenever another variable is encountered.
@@ -48,7 +49,7 @@ pub struct Parser<'a> {
 impl<'a> Parser<'a> {
     fn new(reader: BufReader<File>, table: &'a mut HashMap<String, u16>) -> Self {
         Parser {
-            file_reader: Box::new(reader),
+            file_reader: reader,
             symbol_table: table,
             variable_address: 16,
             instruction_line_no: 0,
@@ -63,6 +64,17 @@ impl<'a> Parser<'a> {
             Err(err) => {
                 println!("error rewinding the file buffer {err}");
                 Err(err)
+            }
+        }
+    }
+
+    fn read_file(&self) -> (String, bool) {
+        let mut reader_iter = self.file_reader.lines();
+        match reader_iter.next() {
+            Some(Ok(content)) => (content, true),
+            None => ("".to_string(), false),
+            _ => {
+                panic!("something went wrong")
             }
         }
     }
@@ -124,10 +136,11 @@ impl<'a> Parser<'a> {
             println!("reset_file_reader(): {err}");
         }
 
-        for line in self.file_reader.as_mut().lines() {
+        let reader = &mut self.file_reader;
+        for line in reader.lines() {
             match line {
-                Ok(mut content) => {
-                    content = String::from(content.replace(" ", ""));
+                Ok(val) => {
+                    let mut content = String::from(val.replace(" ", ""));
                     // Ignore whitespace, comment and labels (L_INSTRUCTIONS)
                     if content == "" || content.starts_with("//") || content.starts_with("(") {
                         continue;
@@ -143,7 +156,7 @@ impl<'a> Parser<'a> {
                     // Assumes only A and C INSTRUCTIONS are left after the
                     // the ignored contents above i.e. comments, whitespace and labels.
                     if content.starts_with("@") {
-                        self.decode_a_instructions(content);
+                        //self.decode_a_instructions(content);
                         continue;
                     }
 
@@ -270,10 +283,12 @@ impl Assembler {
 
     pub fn read_file(&mut self) -> io::Result<()> {
         let f = File::open(&self.path)?;
-        let reader = BufReader::new(f);
-        let mut parser = Parser::new(reader, &mut self.symbol_table);
-        parser.parse_labels();
-        parser.parse_instructions();
+        // let reader = BufReader::new(f);
+        let parser = Parser::new(BufReader::new(f), &mut self.symbol_table);
+        // parser.parse_labels();
+        // parser.parse_instructions();
+        let (content, done) = parser.read_file();
+        println!("{content}, {done}");
 
         println!("{:?}", self.symbol_table);
         Ok(())
