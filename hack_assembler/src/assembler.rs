@@ -43,7 +43,7 @@ pub struct Parser<'a> {
     // Variable address starts from 16 and it is incremented
     // by 1 whenever another variable is encountered.
     variable_address: u16,
-    instruction_line_no: u16,
+    instruction_line: u16,
 }
 
 impl<'a> Parser<'a> {
@@ -51,8 +51,12 @@ impl<'a> Parser<'a> {
         Parser {
             symbol_table: table,
             variable_address: 16,
-            instruction_line_no: 0,
+            instruction_line: 0,
         }
+    }
+
+    fn reset_instruction_line(&mut self) {
+        self.instruction_line = 0
     }
 
     // reset_file_reader rewinds the file buffer because it can be read by another
@@ -89,12 +93,12 @@ impl<'a> Parser<'a> {
         // Handle L_INSTRUCTION
         if content.starts_with("(") && content.ends_with(")") {
             let label = &content[1..content.len() - 1];
-            println!("{} L_INSTRUCTION: {label}", self.instruction_line_no + 1);
+            println!("{} L_INSTRUCTION: {label}", self.instruction_line + 1);
             self.symbol_table
-                .insert(label.to_string(), self.instruction_line_no + 1);
+                .insert(label.to_string(), self.instruction_line + 1);
         } else {
             // Assumes the remaining instructions are C  and A INSTRUCTIONS.
-            self.instruction_line_no = self.instruction_line_no + 1;
+            self.instruction_line = self.instruction_line + 1;
         }
     }
 
@@ -127,7 +131,7 @@ impl<'a> Parser<'a> {
             // Cut the dest part of content.
             match content.split_once("=") {
                 Some((dest, remaining_substr)) => {
-                    println!("{} dest: {dest}", self.instruction_line_no);
+                    println!("{} dest: {dest}", self.instruction_line);
                     content = remaining_substr.to_string();
                 }
                 None => {}
@@ -136,7 +140,7 @@ impl<'a> Parser<'a> {
         if content.contains(";") {
             match content.split_once(";") {
                 Some((comp, jump)) => {
-                    println!("{} comp;jump => {comp};{jump}", self.instruction_line_no);
+                    println!("{} comp;jump => {comp};{jump}", self.instruction_line);
                     content = comp.to_string();
                 }
                 None => {}
@@ -146,7 +150,7 @@ impl<'a> Parser<'a> {
             // of the dest and jump conditions match.
             println!("comp: {content}");
         }
-        self.instruction_line_no = self.instruction_line_no + 1;
+        self.instruction_line = self.instruction_line + 1;
     }
 
     fn decode_a_instructions(&mut self, content: String) {
@@ -155,7 +159,7 @@ impl<'a> Parser<'a> {
         if NUM_RE.is_match(a_instruction) {
             println!(
                 "{} A-INSTRUCTION (number): {a_instruction}",
-                self.instruction_line_no
+                self.instruction_line
             );
         } else {
             match self.symbol_table.get(a_instruction) {
@@ -163,7 +167,7 @@ impl<'a> Parser<'a> {
                     // TODO: create the binary instruction of the value
                     println!(
                         "{}: variable already initialized {}:{}",
-                        self.instruction_line_no, a_instruction, value
+                        self.instruction_line, a_instruction, value
                     )
                 }
                 None => {
@@ -173,7 +177,7 @@ impl<'a> Parser<'a> {
                         .insert(a_instruction.to_string(), self.variable_address);
                     println!(
                         "{} A-INSTRUCTION (symbol: new variable): {a_instruction}: {}",
-                        self.instruction_line_no, self.variable_address
+                        self.instruction_line, self.variable_address
                     );
                     // TODO: create the binary instruction of the value (variable_address)
 
@@ -257,6 +261,7 @@ impl Assembler {
         }
 
         // Second pass.
+        parser.reset_instruction_line();
         for line in reader.by_ref().lines() {
             match line {
                 Ok(content) => {
