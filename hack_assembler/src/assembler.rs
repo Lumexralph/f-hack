@@ -1,10 +1,7 @@
-use clap::builder::Str;
-use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
-use std::io::{BufRead, BufReader, Lines, Read, Seek};
-use std::ops::Index;
+use std::io::{BufRead, BufReader, Read, Seek};
 use std::path::PathBuf;
 
 use lazy_static::lazy_static;
@@ -32,6 +29,63 @@ lazy_static! {
     static ref NUM_RE: Regex = Regex::new("^[0-9]+$").unwrap();
 }
 
+/// Code module provides services for translating symbolic
+/// Hack mnemonics into their binary codes.
+#[derive(Default)]
+struct Code<'b> {
+    dest: HashMap<&'b str, String>,
+    jump: HashMap<&'b str, String>,
+    comp: HashMap<&'b str, &'b str>,
+}
+
+impl<'b> Code<'b> {
+    fn new() -> Self {
+        let mut dest = HashMap::new();
+        let dest_instruction_set = ["null", "M", "D", "DM", "A", "AM", "AD", "ADM"];
+        for (index, instruction) in dest_instruction_set.iter().enumerate() {
+            dest.insert(*instruction, format!("{index:03b}"));
+        }
+
+        let mut jump = HashMap::new();
+        let jump_instruction_set = ["null", "JGT", "JEQ", "JGE", "JLT", "JNE", "JLE", "JMP"];
+        for (index, instruction) in jump_instruction_set.iter().enumerate() {
+            jump.insert(*instruction, format!("{index:03b}"));
+        }
+
+        let mut comp = HashMap::new();
+        comp.insert("0", "101010");
+        comp.insert("1", "111111");
+        comp.insert("-1", "111010");
+        comp.insert("D", "001100");
+        comp.insert("A", "110000");
+        comp.insert("M", "110000");
+        comp.insert("!D", "001101");
+        comp.insert("!A", "110001");
+        comp.insert("!M", "110001");
+        comp.insert("-D", "001111");
+        comp.insert("-A", "110011");
+        comp.insert("-M", "110011");
+        comp.insert("D+1", "011111");
+        comp.insert("A+1", "110111");
+        comp.insert("M+1", "110111");
+        comp.insert("D-1", "001110");
+        comp.insert("A-1", "110010");
+        comp.insert("M-1", "110010");
+        comp.insert("D+A", "000010");
+        comp.insert("D+M", "000010");
+        comp.insert("D-A", "010011");
+        comp.insert("D-M", "010011");
+        comp.insert("A-D", "000111");
+        comp.insert("M-D", "000111");
+        comp.insert("D&A", "000000");
+        comp.insert("D&M", "000000");
+        comp.insert("D|A", "010101");
+        comp.insert("D|M", "010101");
+
+        Code { dest, jump, comp }
+    }
+}
+
 /// Parser handles the reading and breaking of the hack asm
 /// instructions into their underlying fields or types.
 ///
@@ -44,6 +98,7 @@ pub struct Parser<'a> {
     // by 1 whenever another variable is encountered.
     variable_address: u16,
     instruction_line: u16,
+    c_instruction_set: Code<'a>,
 }
 
 impl<'a> Parser<'a> {
@@ -52,24 +107,13 @@ impl<'a> Parser<'a> {
             symbol_table: table,
             variable_address: 16,
             instruction_line: 0,
+            c_instruction_set: Code::new(),
         }
     }
 
     fn reset_instruction_line(&mut self) {
         self.instruction_line = 0
     }
-
-    // reset_file_reader rewinds the file buffer because it can be read by another
-    // method and the file offset won't be at the beginning of the file.
-    // fn reset_file_reader(&mut self) -> Result<(), io::Error> {
-    //     match self.file_reader.rewind() {
-    //         Ok(_) => Ok(()),
-    //         Err(err) => {
-    //             println!("error rewinding the file buffer {err}");
-    //             Err(err)
-    //         }
-    //     }
-    // }
 
     /// parse_labels() goes through the entire assembly program line by line,
     /// it keeps track of line number of code from 0 and is incremented by 1 whenever
@@ -127,29 +171,8 @@ impl<'a> Parser<'a> {
         }
 
         // Possibly C-INSTRUCTION or invalid content.
-        if content.contains("=") && RE.is_match(content.as_str()) {
-            // Cut the dest part of content.
-            match content.split_once("=") {
-                Some((dest, remaining_substr)) => {
-                    println!("{} dest: {dest}", self.instruction_line);
-                    content = remaining_substr.to_string();
-                }
-                None => {}
-            };
-        }
-        if content.contains(";") {
-            match content.split_once(";") {
-                Some((comp, jump)) => {
-                    println!("{} comp;jump => {comp};{jump}", self.instruction_line);
-                    content = comp.to_string();
-                }
-                None => {}
-            };
-        } else {
-            // Assumes content will be comp if none
-            // of the dest and jump conditions match.
-            println!("comp: {content}");
-        }
+        self.decode_c_instruction(content);
+
         self.instruction_line = self.instruction_line + 1;
     }
 
@@ -185,6 +208,36 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+    }
+
+    fn decode_c_instruction(&self, instruction: String) {
+        let mut content = instruction;
+        if content.contains("=") && RE.is_match(content.as_str()) {
+            // Cut the dest part of content.
+            match content.split_once("=") {
+                Some((dest, remaining_substr)) => {
+                    println!("{} dest: {dest}", self.instruction_line);
+                    content = remaining_substr.to_string();
+                }
+                None => {}
+            };
+        }
+        if content.contains(";") {
+            match content.split_once(";") {
+                Some((comp, jump)) => {
+                    println!("{} comp;jump => {comp};{jump}", self.instruction_line);
+                }
+                None => {}
+            };
+        } else {
+            // Assumes content will be comp if none
+            // of the dest and jump conditions match.
+            println!("comp: {content}");
+        }
+
+        println!("C_instruction_dest {:?}", self.c_instruction_set.dest);
+        println!("C_instruction_jump {:?}", self.c_instruction_set.jump);
+        println!("C_instruction_comp {:?}", self.c_instruction_set.comp);
     }
 }
 
@@ -252,7 +305,7 @@ impl Assembler {
                 Ok(content) => {
                     parser.parse_labels(content.as_str());
                 }
-                Err(error) => println!("error reading file content"),
+                Err(error) => println!("error reading file content: {error}"),
             }
         }
 
@@ -267,7 +320,7 @@ impl Assembler {
                 Ok(content) => {
                     parser.parse_instructions(content.as_str());
                 }
-                Err(error) => println!("error reading file content"),
+                Err(error) => println!("error reading file content {error}"),
             }
         }
 
