@@ -216,7 +216,14 @@ impl<'a> Parser<'a> {
             // Cut the dest part of content.
             match content.split_once("=") {
                 Some((dest, remaining_substr)) => {
-                    println!("{} dest: {dest}", self.instruction_line);
+                    let dest_code = match self.c_instruction_set.dest.get(dest) {
+                        Some(code) => code,
+                        None => {
+                            println!("error: invalid dest {dest} instruction provided!");
+                            return;
+                        }
+                    };
+                    println!("{} dest: {dest} : {dest_code}", self.instruction_line);
                     content = remaining_substr.to_string();
                 }
                 None => {}
@@ -225,19 +232,40 @@ impl<'a> Parser<'a> {
         if content.contains(";") {
             match content.split_once(";") {
                 Some((comp, jump)) => {
-                    println!("{} comp;jump => {comp};{jump}", self.instruction_line);
+                    let comp_code = match self.c_instruction_set.comp.get(comp) {
+                        Some(code) => code,
+                        None => {
+                            println!("error: invalid comp {comp} instruction provided!");
+                            return;
+                        }
+                    };
+
+                    let jump_code = match self.c_instruction_set.jump.get(jump) {
+                        Some(code) => code,
+                        None => {
+                            println!("error: invalid jump {jump} instruction provided!");
+                            return;
+                        }
+                    };
+
+                    println!(
+                        "{} comp;jump => {comp};{jump} : {comp_code};{jump_code}",
+                        self.instruction_line
+                    );
                 }
                 None => {}
             };
         } else {
-            // Assumes content will be comp if none
-            // of the dest and jump conditions match.
-            println!("comp: {content}");
+            // Assumes content will be comp if none of the dest and jump conditions match.
+            let comp_code = match self.c_instruction_set.comp.get(content.as_str()) {
+                Some(code) => *code,
+                None => {
+                    println!("error: invalid comp {content} instruction provided!");
+                    return;
+                }
+            };
+            println!("comp: {content}:{comp_code}");
         }
-
-        println!("C_instruction_dest {:?}", self.c_instruction_set.dest);
-        println!("C_instruction_jump {:?}", self.c_instruction_set.jump);
-        println!("C_instruction_comp {:?}", self.c_instruction_set.comp);
     }
 }
 
