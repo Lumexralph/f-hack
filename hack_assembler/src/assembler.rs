@@ -53,34 +53,34 @@ impl<'b> Code<'b> {
         }
 
         let mut comp = HashMap::new();
-        comp.insert("0", "101010");
-        comp.insert("1", "111111");
-        comp.insert("-1", "111010");
-        comp.insert("D", "001100");
-        comp.insert("A", "110000");
-        comp.insert("M", "110000");
-        comp.insert("!D", "001101");
-        comp.insert("!A", "110001");
-        comp.insert("!M", "110001");
-        comp.insert("-D", "001111");
-        comp.insert("-A", "110011");
-        comp.insert("-M", "110011");
-        comp.insert("D+1", "011111");
-        comp.insert("A+1", "110111");
-        comp.insert("M+1", "110111");
-        comp.insert("D-1", "001110");
-        comp.insert("A-1", "110010");
-        comp.insert("M-1", "110010");
-        comp.insert("D+A", "000010");
-        comp.insert("D+M", "000010");
-        comp.insert("D-A", "010011");
-        comp.insert("D-M", "010011");
-        comp.insert("A-D", "000111");
-        comp.insert("M-D", "000111");
-        comp.insert("D&A", "000000");
-        comp.insert("D&M", "000000");
-        comp.insert("D|A", "010101");
-        comp.insert("D|M", "010101");
+        comp.insert("0", "0101010");
+        comp.insert("1", "0111111");
+        comp.insert("-1", "0111010");
+        comp.insert("D", "0001100");
+        comp.insert("A", "0110000");
+        comp.insert("M", "1110000");
+        comp.insert("!D", "0001101");
+        comp.insert("!A", "0110001");
+        comp.insert("!M", "1110001");
+        comp.insert("-D", "0001111");
+        comp.insert("-A", "0110011");
+        comp.insert("-M", "1110011");
+        comp.insert("D+1", "0011111");
+        comp.insert("A+1", "0110111");
+        comp.insert("M+1", "1110111");
+        comp.insert("D-1", "0001110");
+        comp.insert("A-1", "0110010");
+        comp.insert("M-1", "1110010");
+        comp.insert("D+A", "0000010");
+        comp.insert("D+M", "1000010");
+        comp.insert("D-A", "0010011");
+        comp.insert("D-M", "1010011");
+        comp.insert("A-D", "0000111");
+        comp.insert("M-D", "1000111");
+        comp.insert("D&A", "0000000");
+        comp.insert("D&M", "1000000");
+        comp.insert("D|A", "0010101");
+        comp.insert("D|M", "1010101");
 
         Code { dest, jump, comp }
     }
@@ -167,11 +167,10 @@ impl<'a> Parser<'a> {
         // the ignored contents above i.e. comments, whitespace and labels.
         if content.starts_with("@") {
             self.decode_a_instructions(content);
-            return;
+        } else {
+            // Possibly C-INSTRUCTION or invalid content.
+            self.decode_c_instruction(content);
         }
-
-        // Possibly C-INSTRUCTION or invalid content.
-        self.decode_c_instruction(content);
 
         self.instruction_line = self.instruction_line + 1;
     }
