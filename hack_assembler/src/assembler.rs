@@ -7,22 +7,6 @@ use std::path::PathBuf;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-/// Pre-created labels in the symbol table.
-const SP: (&str, u8) = ("SP", 0);
-const LCL: (&str, u8) = ("LCL", 1);
-const ARG: (&str, u8) = ("ARG", 2);
-const THIS: (&str, u8) = ("THIS", 3);
-const THAT: (&str, u8) = ("THAT", 4);
-const SCREEN: (&str, u16) = ("SCREEN", 16384);
-const KBD: (&str, u16) = ("KBD", 24576); // Keyboard
-
-#[derive(Debug)]
-enum PreCreatedLabel {
-    Special((&'static str, u8)),
-    // For SCREEN, KBD (Keyboard)
-    Devices((&'static str, u16)),
-}
-
 lazy_static! {
     // Regex match: dest=comp;jump OR dest=comp
     static ref RE: Regex = Regex::new("^.*?=.*?(;.)?$").unwrap();
@@ -179,18 +163,19 @@ impl<'a> Parser<'a> {
         // Handle A-instructions
         let a_instruction = &content[1..];
         if NUM_RE.is_match(a_instruction) {
+            let a_instruction_int: u16 = a_instruction.parse().unwrap();
             println!(
-                "{} A-INSTRUCTION (number): {a_instruction}",
+                "{} A-INSTRUCTION: {a_instruction} = {a_instruction_int:016b}",
                 self.instruction_line
             );
         } else {
             match self.symbol_table.get(a_instruction) {
                 Some(value) => {
-                    // TODO: create the binary instruction of the value
+                    println!("variable {a_instruction} already initialized");
                     println!(
-                        "{}: variable already initialized {}:{}",
-                        self.instruction_line, a_instruction, value
-                    )
+                        "{} A-INSTRUCTION: {value} = {value:016b}",
+                        self.instruction_line
+                    );
                 }
                 None => {
                     //TODO: You need to check if the new variable location is not SCREEN or KBD
@@ -201,7 +186,11 @@ impl<'a> Parser<'a> {
                         "{} A-INSTRUCTION (symbol: new variable): {a_instruction}: {}",
                         self.instruction_line, self.variable_address
                     );
-                    // TODO: create the binary instruction of the value (variable_address)
+                    let var = self.variable_address;
+                    println!(
+                        "{} A-INSTRUCTION: {var} = {var:016b}",
+                        self.instruction_line
+                    );
 
                     self.variable_address += 1;
                 }
@@ -210,28 +199,31 @@ impl<'a> Parser<'a> {
     }
 
     fn decode_c_instruction(&self, instruction: String) {
+        let mut dest_instruction = "000";
         let mut content = instruction;
         if content.contains("=") && RE.is_match(content.as_str()) {
             // Cut the dest part of content.
             match content.split_once("=") {
                 Some((dest, remaining_substr)) => {
-                    let dest_code = match self.c_instruction_set.dest.get(dest) {
+                    dest_instruction = match self.c_instruction_set.dest.get(dest) {
                         Some(code) => code,
                         None => {
                             println!("error: invalid dest {dest} instruction provided!");
                             return;
                         }
                     };
-                    println!("{} dest: {dest} : {dest_code}", self.instruction_line);
                     content = remaining_substr.to_string();
                 }
                 None => {}
             };
         }
+
+        let mut comp_instruction = "NOT_SET";
+        let mut jump_instruction = "000"; // null value, when omitted.
         if content.contains(";") {
             match content.split_once(";") {
                 Some((comp, jump)) => {
-                    let comp_code = match self.c_instruction_set.comp.get(comp) {
+                    comp_instruction = match self.c_instruction_set.comp.get(comp) {
                         Some(code) => code,
                         None => {
                             println!("error: invalid comp {comp} instruction provided!");
@@ -239,33 +231,50 @@ impl<'a> Parser<'a> {
                         }
                     };
 
-                    let jump_code = match self.c_instruction_set.jump.get(jump) {
+                    jump_instruction = match self.c_instruction_set.jump.get(jump) {
                         Some(code) => code,
                         None => {
                             println!("error: invalid jump {jump} instruction provided!");
                             return;
                         }
                     };
-
-                    println!(
-                        "{} comp;jump => {comp};{jump} : {comp_code};{jump_code}",
-                        self.instruction_line
-                    );
                 }
                 None => {}
             };
         } else {
             // Assumes content will be comp if none of the dest and jump conditions match.
-            let comp_code = match self.c_instruction_set.comp.get(content.as_str()) {
+            comp_instruction = match self.c_instruction_set.comp.get(content.as_str()) {
                 Some(code) => *code,
                 None => {
                     println!("error: invalid comp {content} instruction provided!");
                     return;
                 }
             };
-            println!("comp: {content}:{comp_code}");
         }
+
+        // Create the final format for C_INSTRUCTIONS:
+        // 111 + comp_instruction + dest_instruction + jump_instruction
+        println!(
+            "{} C_INSTRUCTION  (111{comp_instruction}{dest_instruction}{jump_instruction})",
+            self.instruction_line
+        );
     }
+}
+
+/// Pre-created labels in the symbol table.
+const SP: (&str, u8) = ("SP", 0);
+const LCL: (&str, u8) = ("LCL", 1);
+const ARG: (&str, u8) = ("ARG", 2);
+const THIS: (&str, u8) = ("THIS", 3);
+const THAT: (&str, u8) = ("THAT", 4);
+const SCREEN: (&str, u16) = ("SCREEN", 16384);
+const KBD: (&str, u16) = ("KBD", 24576); // Keyboard
+
+#[derive(Debug)]
+enum PreCreatedLabel {
+    Special((&'static str, u8)),
+    // For SCREEN, KBD (Keyboard)
+    Devices((&'static str, u16)),
 }
 
 /// Assembler reads the hack assembly program using
@@ -351,7 +360,7 @@ impl Assembler {
             }
         }
 
-        println!("{:?}", self.symbol_table);
+        println!("SYMBOL_TABLE: {:?}", self.symbol_table);
         Ok(())
     }
 }
