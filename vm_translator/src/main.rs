@@ -105,7 +105,33 @@ fn main() {
                             @SP\n\
                             M=M+1\n",
                             index
-                        ).expect("Error writing to output");
+                        )
+                        .expect("Error writing to output");
+                    }
+                    "local" => {
+                        /*
+                        Load the base address of the "local" segment (which is stored in the LCL register) into the D register.
+
+                        Add the index to the base address to calculate the target address within the "local" segment.
+                        The value at the calculated target address is loaded into the D register.
+
+                        Finally, the value from the D register is stored onto the stack, and the Stack Pointer (SP) is incremented to point to the next empty slot in the stack.
+                         */
+                        write!(
+                            &mut output_file,
+                            "@LCL\n\
+                            D=M\n\
+                            @{}\n\
+                            A=D+A\n\
+                            D=M\n\
+                            @SP\n\
+                            A=M\n\
+                            M=D\n\
+                            @SP\n\
+                            M=M+1\n",
+                            index
+                        )
+                        .expect("Error writing to output");
                     }
                     _ => {
                         eprintln!("Unsupported push segment: {}", segment);
