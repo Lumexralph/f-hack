@@ -59,10 +59,58 @@ fn main() {
                 ).expect("Error writing output");
             }
             "sub" => {
-                // Implement subtraction (similar to "add").
+                /*
+                Similar to the add implementation, but instead of adding D to the value at the top of the stack, it subtracts D from the value at the top of the stack.
+                 */
+                write!(&mut output_file, "// {}\n", line).expect("Error writing to output");
+                write!(
+                    &mut output_file,
+                    "@SP\n\
+                    AM=M-1\n\
+                    D=M\n\
+                    A=A-1\n\
+                    M=M-D\n"
+                ).expect("Error writing output");
             }
             "push" => {
-                // Implement push operation.
+                // [push segment index]. Push the value of segment[index] onto the stack
+                // where segment is argument, local, static, constant, this, that, pointer,
+                // or temp and index is a positive integer.
+
+                let segment = arg1.expect("Missing segment argument");
+                let index = arg2.expect("Missing index argument");
+
+                write!(&mut output_file, "// {}\n", line).expect("Error writing to output");
+
+                match segment {
+                    "argument" => {
+                        /*
+                        Load the base address of the "argument" segment (which is stored in the ARG register) into the D register.
+
+                        Add the index to the base address (loaded into the A register) to calculate the target address within the "argument" segment.
+                        The value at the calculated target address is loaded into the D register.
+
+                        Finally, the value from the D register is stored onto the stack, and the Stack Pointer (SP) is incremented to point to the next empty slot in the stack.
+                         */
+                        write!(
+                            &mut output_file,
+                            "@ARG\n\
+                            D=M\n\
+                            @{}\n\
+                            A=D+A\n\
+                            D=M\n\
+                            @SP\n\
+                            A=M\n\
+                            M=D\n\
+                            @SP\n\
+                            M=M+1\n",
+                            index
+                        ).expect("Error writing to output");
+                    }
+                    _ => {
+                        eprintln!("Unsupported push segment: {}", segment);
+                    }
+                }
             }
             "pop" => {
                 // Implement pop operation.
