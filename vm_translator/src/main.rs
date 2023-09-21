@@ -19,9 +19,6 @@ fn main() {
     let output_filename = format!("{}.asm", &args[1].split('.').next().unwrap());
     let mut output_file = File::create(output_filename).expect("Unable to create output file");
 
-    // Initialize a counter for generating unique labels.
-    let mut label_counter = 0;
-
     // Process each line of the VM code.
     for line in reader.lines() {
         let line = line.expect("Error reading line");
