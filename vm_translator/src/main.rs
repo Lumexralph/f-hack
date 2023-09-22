@@ -153,10 +153,61 @@ fn main() {
                         .expect("Error writing to output");
                     }
                     "constant" => {
+                        /*
+                        Uses the provided index value directly as the constant to be pushed onto the stack.
+                        It loads the constant value into the D register.
+                        The value from the D register is then stored onto the stack.
+                        */
                         write!(
                             &mut output_file,
                             "@{}\n\
                             D=A\n\
+                            @SP\n\
+                            A=M\n\
+                            M=D\n\
+                            @SP\n\
+                            M=M+1\n",
+                            index
+                        )
+                        .expect("Error writing to output");
+                    }
+                    "this" => {
+                        /*
+                        Loads the base address of the "this" segment (which is stored in the THIS register) into the D register.
+                        It then adds the index to the base address to calculate the target address within the "this" segment.
+                        The value at the calculated target address is loaded into the D register.
+                        Finally, the value from the D register is stored onto the stack
+                        */
+                        write!(
+                            &mut output_file,
+                            "@THIS\n\
+                            D=M\n\
+                            @{}\n\
+                            A=D+A\n\
+                            D=M\n\
+                            @SP\n\
+                            A=M\n\
+                            M=D\n\
+                            @SP\n\
+                            M=M+1\n",
+                            index
+                        )
+                        .expect("Error writing to output");
+                    }
+                    "that" => {
+                        /*
+                        Loads the base address of the "that" segment (which is stored in the THAT register) into the D register.
+                        It then adds the index to the base address to calculate the target address within the "this" segment.
+                        The value at the calculated target address is loaded into the D register.
+                        Finally, the value from the D register is stored onto the stack.
+                        */
+                        write!(
+                            &mut output_file,
+                            "@THAT\n\
+                            D=M\n\
+                            @{}\n\
+                            A=D+A\n\
+                            D=M\n\
                             @SP\n\
                             A=M\n\
                             M=D\n\
