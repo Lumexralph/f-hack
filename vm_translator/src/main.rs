@@ -17,7 +17,7 @@ fn main() {
 
     // Open the output Hack assembly file for writing.
     let output_filename = format!("{}.asm", &args[1].split('.').next().unwrap());
-    let mut output_file = File::create(output_filename).expect("Unable to create output file");
+    let mut output_file = File::create(output_filename.to_string()).expect("Unable to create output file");
 
     // Process each line of the VM code.
     for line in reader.lines() {
@@ -121,6 +121,42 @@ fn main() {
                             @{}\n\
                             A=D+A\n\
                             D=M\n\
+                            @SP\n\
+                            A=M\n\
+                            M=D\n\
+                            @SP\n\
+                            M=M+1\n",
+                            index
+                        )
+                        .expect("Error writing to output");
+                    }
+                    "static" => {
+                        /*
+                        Each reference to "static index" will be translated to assembly symbol "FileName.index"
+
+                        This label is used to access static variables in the assembly code.
+                        It loads the value from the memory location pointed to by the label (which represents the static variable) into the D register.
+                        The value from the D register is then stored onto the stack, and the Stack Pointer (SP) is incremented to point to the next empty slot in the stack.
+                        */
+                        let static_label = format!("{}.{}", output_filename, index);
+                        write!(
+                            &mut output_file,
+                            "@{}\n\
+                            D=M\n\
+                            @SP\n\
+                            A=M\n\
+                            M=D\n\
+                            @SP\n\
+                            M=M+1\n",
+                            static_label
+                        )
+                        .expect("Error writing to output");
+                    }
+                    "constant" => {
+                        write!(
+                            &mut output_file,
+                            "@{}\n\
+                            D=A\n\
                             @SP\n\
                             A=M\n\
                             M=D\n\
