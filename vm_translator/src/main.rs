@@ -217,6 +217,76 @@ fn main() {
                         )
                         .expect("Error writing to output");
                     }
+                    "pointer" => {
+                        /*
+                        Access to pointer 0 should result in accessing the THIS pointer and any access
+                        to pointer 1 should result in accessing the THAT pointer. The pointer segment
+                        contains exactly two values and is mapped directly to RAM locations 3 and 4,
+                        these RAM locations are also called THIS and THAT respectively.
+                        */
+                        match index  {
+                            "0" => {
+                                write!(
+                                    &mut output_file,
+                                    "@THIS\n\
+                                    D=M\n\
+                                    @SP\n\
+                                    A=M\n\
+                                    M=D\n\
+                                    @SP\n\
+                                    M=M+1\n"
+                                )
+                                .expect("Error writing to output");
+                            }
+                            "1" => {
+                                write!(
+                                    &mut output_file,
+                                    "@THAT\n\
+                                    D=M\n\
+                                    @SP\n\
+                                    A=M\n\
+                                    M=D\n\
+                                    @SP\n\
+                                    M=M+1\n",
+                                )
+                                .expect("Error writing to output");
+                            }
+                            _ => {
+                                eprintln!("Unsupported pointer index: {}", index);
+                            }
+                        }
+                    }
+                    "temp" => {
+                        /*
+                        It is a fixed 8-word segment that is mapped directly to RAM locations 5 - 12, index
+                        varies from 0 to 7.
+                        Push from the temp segment (R5-R12)
+                        */
+                        if let Ok(parsed_index) = index.parse::<i32>() {
+                            if parsed_index < 0 || parsed_index > 7 {
+                                eprintln!("Supplied index should be between 0 - 7");
+                                return
+                            }
+
+                            let temp_base_address = 5;
+                            let temp_current_address = temp_base_address + parsed_index;
+
+                            write!(
+                                &mut output_file,
+                                "@{}\n\
+                                D=M\n\
+                                @SP\n\
+                                A=M\n\
+                                M=D\n\
+                                @SP\n\
+                                M=M+1\n",
+                                temp_current_address
+                            )
+                            .expect("Error writing to output");
+                        } else {
+                            eprintln!("Supplied index can't be parsed to an integer");
+                        }
+                    }
                     _ => {
                         eprintln!("Unsupported push segment: {}", segment);
                     }
