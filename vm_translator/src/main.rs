@@ -17,15 +17,17 @@ fn main() {
 
     // Open the output Hack assembly file for writing.
     let output_filename = format!("{}.asm", &args[1].split('.').next().unwrap());
-    let mut output_file = File::create(output_filename.to_string()).expect("Unable to create output file");
+    let mut output_file =
+        File::create(output_filename.to_string()).expect("Unable to create output file");
 
     // Process each line of the VM code.
     for line in reader.lines() {
         let line = line.expect("Error reading line");
         let parts: Vec<&str> = line.trim().split_whitespace().collect();
 
-        if parts.is_empty() {
-            continue; // Skip empty lines.
+        if parts.is_empty() || line.starts_with("//") {
+            // Skip empty lines or ignore comments.
+            continue;
         }
 
         let command = parts[0];
@@ -53,7 +55,8 @@ fn main() {
                     D=M\n\
                     A=A-1\n\
                     M=D+M\n"
-                ).expect("Error writing output");
+                )
+                .expect("Error writing output");
             }
             "sub" => {
                 /*
@@ -67,7 +70,8 @@ fn main() {
                     D=M\n\
                     A=A-1\n\
                     M=M-D\n"
-                ).expect("Error writing output");
+                )
+                .expect("Error writing output");
             }
             "push" => {
                 // [push segment index]. Push the value of segment[index] onto the stack
@@ -224,7 +228,7 @@ fn main() {
                         contains exactly two values and is mapped directly to RAM locations 3 and 4,
                         these RAM locations are also called THIS and THAT respectively.
                         */
-                        match index  {
+                        match index {
                             "0" => {
                                 write!(
                                     &mut output_file,
@@ -265,7 +269,7 @@ fn main() {
                         if let Ok(parsed_index) = index.parse::<i32>() {
                             if parsed_index < 0 || parsed_index > 7 {
                                 eprintln!("Supplied index should be between 0 - 7");
-                                return
+                                return;
                             }
 
                             let temp_base_address = 5;
@@ -293,7 +297,247 @@ fn main() {
                 }
             }
             "pop" => {
-                // Implement pop operation.
+                // [pop segment index]. Pop the value of segment[index] from the stack
+                // where segment is argument, local, static, constant, this, that, pointer,
+                // or temp and index is a positive integer.
+
+                let segment = arg1.expect("Missing segment argument");
+                let index = arg2.expect("Missing index argument");
+
+                write!(&mut output_file, "// {}\n", line).expect("Error writing to output");
+
+                match segment {
+                    "argument" => {
+                        /*
+                        Calculate the target address within the "argument" segment in a single step by adding the index to the value stored in the ARG register and storing it in the D register as the target address.
+
+                        Use @R13 as a temporary register (variable) to store the target address.
+
+                        Next, we use AM=M-1 to decrement the Stack Pointer (SP) and access the value at the top of the stack, storing it in the D register.
+
+                        Finally, we use the stored target address in @R13 to store the value from the D register into the target address within the "argument" segment.
+                        */
+
+                        // Calculate the target address within the "argument" segment.
+                        write!(
+                            &mut output_file,
+                            "@ARG\n\
+                            D=M\n\
+                            @{}\n\
+                            A=D+A\n\
+                            D=A\n", // D = Target Address
+                            index
+                        )
+                        .expect("Error writing to output");
+
+                        // Pop the value from the stack into the target address.
+                        write!(
+                            &mut output_file,
+                            "@R13\n\
+                            M=D\n\
+                            @SP\n\
+                            AM=M-1\n\
+                            D=M\n\
+                            @R13\n\
+                            A=M\n\
+                            M=D\n"
+                        )
+                        .expect("Error writing to output");
+                    }
+                    "local" => {
+                        // Logic is similar to "argument" segment above with a
+                        // difference of the base memory address LOCAL.
+                        // Calculate the target address within the "argument" segment.
+                        write!(
+                            &mut output_file,
+                            "@LCL\n\
+                            D=M\n\
+                            @{}\n\
+                            A=D+A\n\
+                            D=A\n", // D = Target Address
+                            index
+                        )
+                        .expect("Error writing to output");
+
+                        // Pop the value from the stack into the target address.
+                        write!(
+                            &mut output_file,
+                            "@R13\n\
+                            M=D\n\
+                            @SP\n\
+                            AM=M-1\n\
+                            D=M\n\
+                            @R13\n\
+                            A=M\n\
+                            M=D\n"
+                        )
+                        .expect("Error writing to output");
+                    }
+                    "static" => {
+                        let static_label = format!("{}.{}", output_filename, index);
+                        // Pop the value from the stack into the D register.
+                        // Decrement the Stack Pointer (SP) and access the value at
+                        // the top of the stack. The value is then stored in the D register.
+                        write!(
+                            &mut output_file,
+                            "@SP\n\
+                            AM=M-1\n\
+                            D=M\n"
+                        )
+                        .expect("Error writing to output");
+
+                        // Store the popped value to the static address location.
+                        write!(
+                            &mut output_file,
+                            "@{}\n\
+                            M=D\n",
+                            static_label
+                        )
+                        .expect("Error writing to output");
+                    }
+                    "constant" => {
+                        /*
+                        The constant segment in VM is read-only, meaning you can only push values onto the stack using it. It doesn't support the pop operation because it doesn't represent a writable memory location. Therefore, there is no need to implement the constant segment.
+                        */
+                        eprintln!("Unexpected pop operation: {}", segment);
+                        return;
+                    }
+                    "this" => {
+                        /*
+                        Calculate the target address within the "this" segment in a single step by adding the index to the value stored in the THIS register and storing it in the D register as the target address.
+
+                        Use @R13 as a temporary register (variable) to store the target address.
+
+                        Next, we use AM=M-1 to decrement the Stack Pointer (SP) and access the value at the top of the stack, storing it in the D register.
+
+                        Finally, we use the stored target address in @R13 to store the value from the D register into the target address within the "this" segment.
+                        */
+
+                        // Calculate the target address within the "this" segment
+                        write!(
+                            &mut output_file,
+                            "@THIS\n\
+                            D=M\n\
+                            @{}\n\
+                            A=D+A\n\
+                            D=A\n", // D = Target Address
+                            index
+                        )
+                        .expect("Error writing to output");
+
+                        // Pop the value from the stack into the target address
+                        write!(
+                            &mut output_file,
+                            "@R13\n\
+                            M=D\n\
+                            @SP\n\
+                            AM=M-1\n\
+                            D=M\n\
+                            @R13\n\
+                            A=M\n\
+                            M=D\n"
+                        )
+                        .expect("Error writing to output");
+                    }
+                    "that" => {
+                        // Logic is similar to this segment above.
+                        write!(
+                            &mut output_file,
+                            "@THAT\n\
+                            D=M\n\
+                            @{}\n\
+                            A=D+A\n\
+                            D=A\n", // D = Target Address
+                            index
+                        )
+                        .expect("Error writing to output");
+
+                        // Pop the value from the stack into the target address
+                        write!(
+                            &mut output_file,
+                            "@R13\n\
+                            M=D\n\
+                            @SP\n\
+                            AM=M-1\n\
+                            D=M\n\
+                            @R13\n\
+                            A=M\n\
+                            M=D\n"
+                        )
+                        .expect("Error writing to output");
+                    }
+                    "pointer" => {
+                        // Pop the value from the stack into the D register.
+                        // Decrement the Stack Pointer (SP) and access the value at
+                        // the top of the stack. The value is then stored in the D register.
+                        write!(
+                            &mut output_file,
+                            "@SP\n\
+                            AM=M-1\n\
+                            D=M\n"
+                        )
+                        .expect("Error writing to output");
+
+                        // Store the popped value in the D-register into the THIS or THAT pointer.
+                        match index {
+                            "0" => {
+                                write!(
+                                    &mut output_file,
+                                    "@THIS\n\
+                                    M=D\n"
+                                )
+                                .expect("Error writing to output");
+                            }
+                            "1" => {
+                                write!(
+                                    &mut output_file,
+                                    "@THAT\n\
+                                    M=D\n",
+                                )
+                                .expect("Error writing to output");
+                            }
+                            _ => {
+                                eprintln!("Unsupported pointer index: {}", index);
+                            }
+                        }
+                    }
+                    "temp" => {
+                        // Pop the value from the stack into the D register.
+                        // Decrement the Stack Pointer (SP) and access the value at
+                        // the top of the stack. The value is then stored in the D register.
+                        write!(
+                            &mut output_file,
+                            "@SP\n\
+                            AM=M-1\n\
+                            D=M\n"
+                        )
+                        .expect("Error writing to output");
+
+                        if let Ok(parsed_index) = index.parse::<i32>() {
+                            if parsed_index < 0 || parsed_index > 7 {
+                                eprintln!("Supplied index should be between 0 - 7");
+                                return;
+                            }
+
+                            let temp_base_address = 5;
+                            let temp_current_address = temp_base_address + parsed_index;
+
+                            // Store the popped value in the D-register into the temp_current_address.
+                            write!(
+                                &mut output_file,
+                                "@{}\n\
+                                M=D\n",
+                                temp_current_address
+                            )
+                            .expect("Error writing to output");
+                        } else {
+                            eprintln!("Supplied index can't be parsed to an integer");
+                        }
+                    }
+                    _ => {
+                        eprintln!("Unsupported pop segment: {}", segment);
+                    }
+                }
             }
             _ => {
                 eprintln!("Unsupported VM command: {}", command);
