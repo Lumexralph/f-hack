@@ -20,6 +20,8 @@ fn main() {
     let mut output_file =
         File::create(output_filename.to_string()).expect("Unable to create output file");
 
+    let mut eq_counter = 0;
+
     // Process each line of the VM code.
     for line in reader.lines() {
         let line = line.expect("Error reading line");
@@ -34,6 +36,8 @@ fn main() {
         let arg1 = parts.get(1).cloned();
         let arg2 = parts.get(2).cloned();
 
+        write!(&mut output_file, "// {}\n", line).expect("Error writing to output");
+
         match command {
             "add" => {
                 /*
@@ -47,7 +51,6 @@ fn main() {
 
                 M=D+M: Finally, this line adds the value in the D-register (which holds the second value from the top of the stack) to the value in the memory location pointed to by the A-register (which is the top value of the stack). The result is stored back into the memory location pointed to by the A-register. In essence, this line replaces the two top values with their sum.
                 */
-                write!(&mut output_file, "// {}\n", line).expect("Error writing to output");
                 write!(
                     &mut output_file,
                     "@SP\n\
@@ -62,7 +65,6 @@ fn main() {
                 /*
                 Similar to the add implementation, but instead of adding D to the value at the top of the stack, it subtracts D from the value at the top of the stack.
                  */
-                write!(&mut output_file, "// {}\n", line).expect("Error writing to output");
                 write!(
                     &mut output_file,
                     "@SP\n\
@@ -73,6 +75,48 @@ fn main() {
                 )
                 .expect("Error writing output");
             }
+            "neg" => {
+                write!(
+                    &mut output_file,
+                    "@SP\n\
+                    AM=M-1\n\
+                    M=-M\n" // Negate the value
+                )
+                .expect("Error writing output");
+            }
+            "eq" => {
+                // Decrement SP and compare the top two stack values.
+                write!(
+                    &mut output_file,
+                    "@SP\n\
+                    AM=M-1\n\
+                    D=M\n\
+                    A=A-1\n\
+                    D=M-D\n" // Make a subtraction, value will be 0 if they are equal
+                )
+                .expect("Error writing output");
+
+                // Set the result to true (-1) if the values are equal; otherwise, set it to false (0).
+                //We then perform the jump based on the comparison result, setting the 
+                // top of the stack accordingly (0 or -1) and jumping to the appropriate labels.
+                write!(
+                    &mut output_file,
+                    "@TRUE{}\n\
+                    D;JEQ\n\
+                    @SP\n\
+                    A=M-1\n\
+                    M=0\n\
+                    @END{}\n\
+                    0;JMP\n\
+                    (TRUE{})\n\
+                    @SP\n\
+                    A=M-1\n\
+                    M=-1\n\
+                    (END{})\n",
+                    eq_counter, eq_counter, eq_counter, eq_counter
+                )
+                .expect("Error writing output");
+            }
             "push" => {
                 // [push segment index]. Push the value of segment[index] onto the stack
                 // where segment is argument, local, static, constant, this, that, pointer,
@@ -80,8 +124,6 @@ fn main() {
 
                 let segment = arg1.expect("Missing segment argument");
                 let index = arg2.expect("Missing index argument");
-
-                write!(&mut output_file, "// {}\n", line).expect("Error writing to output");
 
                 match segment {
                     "argument" => {
@@ -300,11 +342,8 @@ fn main() {
                 // [pop segment index]. Pop the value of segment[index] from the stack
                 // where segment is argument, local, static, constant, this, that, pointer,
                 // or temp and index is a positive integer.
-
                 let segment = arg1.expect("Missing segment argument");
                 let index = arg2.expect("Missing index argument");
-
-                write!(&mut output_file, "// {}\n", line).expect("Error writing to output");
 
                 match segment {
                     "argument" => {
