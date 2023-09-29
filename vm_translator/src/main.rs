@@ -1,6 +1,19 @@
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// LABEL_COUNTER is used to keep track of the label count.
+/// AtomicUsize ensures that the counter can be safely accessed and modified across
+/// multiple threads if running program is multithreaded.
+static LABEL_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+// next_label_id is a placeholder for a function that generates unique label IDs.
+// Label IDs are used in assembly languages to create unique labels for jumps and branching.
+fn next_label_id() -> usize {
+    LABEL_COUNTER.fetch_add(1, Ordering::Relaxed)
+}
+
 
 // TODO: change all the expect() error handling to a reliable pattern.
 fn main() {
@@ -19,8 +32,6 @@ fn main() {
     let output_filename = format!("{}.asm", &args[1].split('.').next().unwrap());
     let mut output_file =
         File::create(output_filename.to_string()).expect("Unable to create output file");
-
-    let mut eq_counter = 0;
 
     // Process each line of the VM code.
     for line in reader.lines() {
@@ -53,11 +64,11 @@ fn main() {
                 */
                 write!(
                     &mut output_file,
-                    "@SP\n\
-                    AM=M-1\n\
-                    D=M\n\
-                    A=A-1\n\
-                    M=D+M\n"
+                    "\t@SP\n\
+                    \tAM=M-1\n\
+                    \tD=M\n\
+                    \tA=A-1\n\
+                    \tM=D+M\n"
                 )
                 .expect("Error writing output");
             }
@@ -67,53 +78,80 @@ fn main() {
                  */
                 write!(
                     &mut output_file,
-                    "@SP\n\
-                    AM=M-1\n\
-                    D=M\n\
-                    A=A-1\n\
-                    M=M-D\n"
+                    "\t@SP\n\
+                    \tAM=M-1\n\
+                    \tD=M\n\
+                    \tA=A-1\n\
+                    \tM=M-D\n"
                 )
                 .expect("Error writing output");
             }
-            "neg" => {
+            "and" | "or" => {
+                let logical_command = if command == "and" { "&" } else { "|" };
+
                 write!(
                     &mut output_file,
-                    "@SP\n\
-                    AM=M-1\n\
-                    M=-M\n" // Negate the value
+                    "\t@SP\n\
+                    \tAM=M-1\n\
+                    \tD=M\n\
+                    \tA=A-1\n\
+                    \tM=M{}D\n",
+                    logical_command
                 )
                 .expect("Error writing output");
             }
-            "eq" => {
+            "neg" | "not" => {
+                let command_instruction = if command == "neg" { "-" } else { "!" };
+
+                write!(
+                    &mut output_file,
+                    "\t@SP\n\
+                    \tAM=M-1\n\
+                    \tM={}M\n", // Negate the value
+                    command_instruction
+                )
+                .expect("Error writing output");
+            }
+            "eq" | "gt" | "lt" => {
+                let jump_instruction = if command == "eq" {
+                    "JEQ"
+                } else if command == "gt" {
+                    "JGT"
+                } else {
+                    "JLT"
+                };
+
+                let label_id = next_label_id();
+
                 // Decrement SP and compare the top two stack values.
                 write!(
                     &mut output_file,
-                    "@SP\n\
-                    AM=M-1\n\
-                    D=M\n\
-                    A=A-1\n\
-                    D=M-D\n" // Make a subtraction, value will be 0 if they are equal
+                    "\t@SP\n\
+                    \tAM=M-1\n\
+                    \tD=M\n\
+                    \tA=A-1\n\
+                    \tD=M-D\n" // Make a subtraction, value will be 0 if they are equal
                 )
                 .expect("Error writing output");
 
                 // Set the result to true (-1) if the values are equal; otherwise, set it to false (0).
-                //We then perform the jump based on the comparison result, setting the 
+                //We then perform the jump based on the comparison result, setting the
                 // top of the stack accordingly (0 or -1) and jumping to the appropriate labels.
                 write!(
                     &mut output_file,
-                    "@TRUE{}\n\
-                    D;JEQ\n\
-                    @SP\n\
-                    A=M-1\n\
-                    M=0\n\
-                    @END{}\n\
-                    0;JMP\n\
-                    (TRUE{})\n\
-                    @SP\n\
-                    A=M-1\n\
-                    M=-1\n\
-                    (END{})\n",
-                    eq_counter, eq_counter, eq_counter, eq_counter
+                    "\t@TRUE.{}\n\
+                    \tD;{}\n\
+                    \t@SP\n\
+                    \tA=M-1\n\
+                    \tM=0\n\
+                    \t@CONTINUE.{}\n\
+                    \t0;JMP\n\
+                    (TRUE.{})\n\
+                    \t@SP\n\
+                    \tA=M-1\n\
+                    \tM=-1\n\
+                    (CONTINUE.{})\n",
+                    label_id, jump_instruction, label_id, label_id, label_id
                 )
                 .expect("Error writing output");
             }
@@ -137,16 +175,16 @@ fn main() {
                          */
                         write!(
                             &mut output_file,
-                            "@ARG\n\
-                            D=M\n\
-                            @{}\n\
-                            A=D+A\n\
-                            D=M\n\
-                            @SP\n\
-                            A=M\n\
-                            M=D\n\
-                            @SP\n\
-                            M=M+1\n",
+                            "\t@ARG\n\
+                            \tD=M\n\
+                            \t@{}\n\
+                            \tA=D+A\n\
+                            \tD=M\n\
+                            \t@SP\n\
+                            \tA=M\n\
+                            \tM=D\n\
+                            \t@SP\n\
+                            \tM=M+1\n",
                             index
                         )
                         .expect("Error writing to output");
@@ -162,16 +200,16 @@ fn main() {
                          */
                         write!(
                             &mut output_file,
-                            "@LCL\n\
-                            D=M\n\
-                            @{}\n\
-                            A=D+A\n\
-                            D=M\n\
-                            @SP\n\
-                            A=M\n\
-                            M=D\n\
-                            @SP\n\
-                            M=M+1\n",
+                            "\t@LCL\n\
+                            \tD=M\n\
+                            \t@{}\n\
+                            \tA=D+A\n\
+                            \tD=M\n\
+                            \t@SP\n\
+                            \tA=M\n\
+                            \tM=D\n\
+                            \t@SP\n\
+                            \tM=M+1\n",
                             index
                         )
                         .expect("Error writing to output");
@@ -187,13 +225,13 @@ fn main() {
                         let static_label = format!("{}.{}", output_filename, index);
                         write!(
                             &mut output_file,
-                            "@{}\n\
-                            D=M\n\
-                            @SP\n\
-                            A=M\n\
-                            M=D\n\
-                            @SP\n\
-                            M=M+1\n",
+                            "\t@{}\n\
+                            \tD=M\n\
+                            \t@SP\n\
+                            \tA=M\n\
+                            \tM=D\n\
+                            \t@SP\n\
+                            \tM=M+1\n",
                             static_label
                         )
                         .expect("Error writing to output");
@@ -206,13 +244,13 @@ fn main() {
                         */
                         write!(
                             &mut output_file,
-                            "@{}\n\
-                            D=A\n\
-                            @SP\n\
-                            A=M\n\
-                            M=D\n\
-                            @SP\n\
-                            M=M+1\n",
+                            "\t@{}\n\
+                            \tD=A\n\
+                            \t@SP\n\
+                            \tA=M\n\
+                            \tM=D\n\
+                            \t@SP\n\
+                            \tM=M+1\n",
                             index
                         )
                         .expect("Error writing to output");
@@ -226,16 +264,16 @@ fn main() {
                         */
                         write!(
                             &mut output_file,
-                            "@THIS\n\
-                            D=M\n\
-                            @{}\n\
-                            A=D+A\n\
-                            D=M\n\
-                            @SP\n\
-                            A=M\n\
-                            M=D\n\
-                            @SP\n\
-                            M=M+1\n",
+                            "\t@THIS\n\
+                            \tD=M\n\
+                            \t@{}\n\
+                            \tA=D+A\n\
+                            \tD=M\n\
+                            \t@SP\n\
+                            \tA=M\n\
+                            \tM=D\n\
+                            \t@SP\n\
+                            \tM=M+1\n",
                             index
                         )
                         .expect("Error writing to output");
@@ -249,16 +287,16 @@ fn main() {
                         */
                         write!(
                             &mut output_file,
-                            "@THAT\n\
-                            D=M\n\
-                            @{}\n\
-                            A=D+A\n\
-                            D=M\n\
-                            @SP\n\
-                            A=M\n\
-                            M=D\n\
-                            @SP\n\
-                            M=M+1\n",
+                            "\t@THAT\n\
+                            \tD=M\n\
+                            \t@{}\n\
+                            \tA=D+A\n\
+                            \tD=M\n\
+                            \t@SP\n\
+                            \tA=M\n\
+                            \tM=D\n\
+                            \t@SP\n\
+                            \tM=M+1\n",
                             index
                         )
                         .expect("Error writing to output");
@@ -274,26 +312,26 @@ fn main() {
                             "0" => {
                                 write!(
                                     &mut output_file,
-                                    "@THIS\n\
-                                    D=M\n\
-                                    @SP\n\
-                                    A=M\n\
-                                    M=D\n\
-                                    @SP\n\
-                                    M=M+1\n"
+                                    "\t@THIS\n\
+                                    \tD=M\n\
+                                    \t@SP\n\
+                                    \tA=M\n\
+                                    \tM=D\n\
+                                    \t@SP\n\
+                                    \tM=M+1\n"
                                 )
                                 .expect("Error writing to output");
                             }
                             "1" => {
                                 write!(
                                     &mut output_file,
-                                    "@THAT\n\
-                                    D=M\n\
-                                    @SP\n\
-                                    A=M\n\
-                                    M=D\n\
-                                    @SP\n\
-                                    M=M+1\n",
+                                    "\t@THAT\n\
+                                    \tD=M\n\
+                                    \t@SP\n\
+                                    \tA=M\n\
+                                    \tM=D\n\
+                                    \t@SP\n\
+                                    \tM=M+1\n",
                                 )
                                 .expect("Error writing to output");
                             }
@@ -319,13 +357,13 @@ fn main() {
 
                             write!(
                                 &mut output_file,
-                                "@{}\n\
-                                D=M\n\
-                                @SP\n\
-                                A=M\n\
-                                M=D\n\
-                                @SP\n\
-                                M=M+1\n",
+                                "\t@{}\n\
+                                \tD=M\n\
+                                \t@SP\n\
+                                \tA=M\n\
+                                \tM=D\n\
+                                \t@SP\n\
+                                \tM=M+1\n",
                                 temp_current_address
                             )
                             .expect("Error writing to output");
@@ -360,11 +398,11 @@ fn main() {
                         // Calculate the target address within the "argument" segment.
                         write!(
                             &mut output_file,
-                            "@ARG\n\
-                            D=M\n\
-                            @{}\n\
-                            A=D+A\n\
-                            D=A\n", // D = Target Address
+                            "\t@ARG\n\
+                            \tD=M\n\
+                            \t@{}\n\
+                            \tA=D+A\n\
+                            \tD=A\n", // D = Target Address
                             index
                         )
                         .expect("Error writing to output");
@@ -372,14 +410,14 @@ fn main() {
                         // Pop the value from the stack into the target address.
                         write!(
                             &mut output_file,
-                            "@R13\n\
-                            M=D\n\
-                            @SP\n\
-                            AM=M-1\n\
-                            D=M\n\
-                            @R13\n\
-                            A=M\n\
-                            M=D\n"
+                            "\t@R13\n\
+                            \tM=D\n\
+                            \t@SP\n\
+                            \tAM=M-1\n\
+                            \tD=M\n\
+                            \t@R13\n\
+                            \tA=M\n\
+                            \tM=D\n"
                         )
                         .expect("Error writing to output");
                     }
@@ -389,11 +427,11 @@ fn main() {
                         // Calculate the target address within the "argument" segment.
                         write!(
                             &mut output_file,
-                            "@LCL\n\
-                            D=M\n\
-                            @{}\n\
-                            A=D+A\n\
-                            D=A\n", // D = Target Address
+                            "\t@LCL\n\
+                            \tD=M\n\
+                            \t@{}\n\
+                            \tA=D+A\n\
+                            \tD=A\n", // D = Target Address
                             index
                         )
                         .expect("Error writing to output");
@@ -401,14 +439,14 @@ fn main() {
                         // Pop the value from the stack into the target address.
                         write!(
                             &mut output_file,
-                            "@R13\n\
-                            M=D\n\
-                            @SP\n\
-                            AM=M-1\n\
-                            D=M\n\
-                            @R13\n\
-                            A=M\n\
-                            M=D\n"
+                            "\t@R13\n\
+                            \tM=D\n\
+                            \t@SP\n\
+                            \tAM=M-1\n\
+                            \tD=M\n\
+                            \t@R13\n\
+                            \tA=M\n\
+                            \tM=D\n"
                         )
                         .expect("Error writing to output");
                     }
@@ -419,17 +457,17 @@ fn main() {
                         // the top of the stack. The value is then stored in the D register.
                         write!(
                             &mut output_file,
-                            "@SP\n\
-                            AM=M-1\n\
-                            D=M\n"
+                            "\t@SP\n\
+                            \tAM=M-1\n\
+                            \tD=M\n"
                         )
                         .expect("Error writing to output");
 
                         // Store the popped value to the static address location.
                         write!(
                             &mut output_file,
-                            "@{}\n\
-                            M=D\n",
+                            "\t@{}\n\
+                            \tM=D\n",
                             static_label
                         )
                         .expect("Error writing to output");
@@ -455,11 +493,11 @@ fn main() {
                         // Calculate the target address within the "this" segment
                         write!(
                             &mut output_file,
-                            "@THIS\n\
-                            D=M\n\
-                            @{}\n\
-                            A=D+A\n\
-                            D=A\n", // D = Target Address
+                            "\t@THIS\n\
+                            \tD=M\n\
+                            \t@{}\n\
+                            \tA=D+A\n\
+                            \tD=A\n", // D = Target Address
                             index
                         )
                         .expect("Error writing to output");
@@ -467,14 +505,14 @@ fn main() {
                         // Pop the value from the stack into the target address
                         write!(
                             &mut output_file,
-                            "@R13\n\
-                            M=D\n\
-                            @SP\n\
-                            AM=M-1\n\
-                            D=M\n\
-                            @R13\n\
-                            A=M\n\
-                            M=D\n"
+                            "\t@R13\n\
+                            \tM=D\n\
+                            \t@SP\n\
+                            \tAM=M-1\n\
+                            \tD=M\n\
+                            \t@R13\n\
+                            \tA=M\n\
+                            \tM=D\n"
                         )
                         .expect("Error writing to output");
                     }
@@ -482,11 +520,11 @@ fn main() {
                         // Logic is similar to this segment above.
                         write!(
                             &mut output_file,
-                            "@THAT\n\
-                            D=M\n\
-                            @{}\n\
-                            A=D+A\n\
-                            D=A\n", // D = Target Address
+                            "\t@THAT\n\
+                            \tD=M\n\
+                            \t@{}\n\
+                            \tA=D+A\n\
+                            \tD=A\n", // D = Target Address
                             index
                         )
                         .expect("Error writing to output");
@@ -494,14 +532,14 @@ fn main() {
                         // Pop the value from the stack into the target address
                         write!(
                             &mut output_file,
-                            "@R13\n\
-                            M=D\n\
-                            @SP\n\
-                            AM=M-1\n\
-                            D=M\n\
-                            @R13\n\
-                            A=M\n\
-                            M=D\n"
+                            "\t@R13\n\
+                            \tM=D\n\
+                            \t@SP\n\
+                            \tAM=M-1\n\
+                            \tD=M\n\
+                            \t@R13\n\
+                            \tA=M\n\
+                            \tM=D\n"
                         )
                         .expect("Error writing to output");
                     }
@@ -511,9 +549,9 @@ fn main() {
                         // the top of the stack. The value is then stored in the D register.
                         write!(
                             &mut output_file,
-                            "@SP\n\
-                            AM=M-1\n\
-                            D=M\n"
+                            "\t@SP\n\
+                            \tAM=M-1\n\
+                            \tD=M\n"
                         )
                         .expect("Error writing to output");
 
@@ -522,16 +560,16 @@ fn main() {
                             "0" => {
                                 write!(
                                     &mut output_file,
-                                    "@THIS\n\
-                                    M=D\n"
+                                    "\t@THIS\n\
+                                    \tM=D\n"
                                 )
                                 .expect("Error writing to output");
                             }
                             "1" => {
                                 write!(
                                     &mut output_file,
-                                    "@THAT\n\
-                                    M=D\n",
+                                    "\t@THAT\n\
+                                    \tM=D\n",
                                 )
                                 .expect("Error writing to output");
                             }
@@ -546,9 +584,9 @@ fn main() {
                         // the top of the stack. The value is then stored in the D register.
                         write!(
                             &mut output_file,
-                            "@SP\n\
-                            AM=M-1\n\
-                            D=M\n"
+                            "\t@SP\n\
+                            \tAM=M-1\n\
+                            \tD=M\n"
                         )
                         .expect("Error writing to output");
 
@@ -564,8 +602,8 @@ fn main() {
                             // Store the popped value in the D-register into the temp_current_address.
                             write!(
                                 &mut output_file,
-                                "@{}\n\
-                                M=D\n",
+                                "\t@{}\n\
+                                \tM=D\n",
                                 temp_current_address
                             )
                             .expect("Error writing to output");
@@ -584,5 +622,14 @@ fn main() {
         }
     }
 
-    println!("Hello, world!");
+    // It is recommended to end each program with an infinite loop.
+    write!(
+        &mut output_file,
+        "(INFINITE_LOOP)\n\
+        \t@INFINITE_LOOP\n\
+        \t0;JMP\n"
+    )
+    .expect("Error writing to output");
+
+    println!("Finished VM Code translation to hack assembly code!");
 }
