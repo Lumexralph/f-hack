@@ -2,6 +2,7 @@ use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::path::Path;
 
 /// LABEL_COUNTER is used to keep track of the label count.
 /// AtomicUsize ensures that the counter can be safely accessed and modified across
@@ -32,6 +33,15 @@ fn main() {
     let output_filename = format!("{}.asm", &args[1].split('.').next().unwrap());
     let mut output_file =
         File::create(output_filename.to_string()).expect("Unable to create output file");
+
+    // Get the filename without extension.
+    let path = Path::new(&args[1]);
+    let static_identifier = if let Some(filename) = path.file_stem() {
+        filename.to_string_lossy()
+    } else{
+        eprintln!("No filename in path: {}", &args[1]);
+        return;
+    };
 
     // Process each line of the VM code.
     for line in reader.lines() {
@@ -100,17 +110,62 @@ fn main() {
                 )
                 .expect("Error writing output");
             }
-            "neg" | "not" => {
-                let command_instruction = if command == "neg" { "-" } else { "!" };
-
+            "not" => {
+                // Decrement the Stack Pointer (SP) and access the value at the top of the stack
                 write!(
                     &mut output_file,
-                    "\t@SP\n\
-                    \tAM=M-1\n\
-                    \tM={}M\n", // Negate the value
-                    command_instruction
+                    "@SP\n\
+                    AM=M-1\n\
+                    D=M\n"
                 )
-                .expect("Error writing output");
+                .expect("Error writing to output");
+
+                // Perform bitwise NOT operation on the value in the D register
+                write!(
+                    &mut output_file,
+                    "D=!D\n"
+                )
+                .expect("Error writing to output");
+
+                // Increment the Stack Pointer and store the result on the stack
+                write!(
+                    &mut output_file,
+                    "@SP\n\
+                    A=M\n\
+                    M=D\n\
+                    @SP\n\
+                    M=M+1\n"
+                )
+                .expect("Error writing to output");
+            }
+            "neg" => {
+                // Pop the value from the stack into the D register
+                write!(
+                    &mut output_file,
+                    "@SP\n\
+                    AM=M-1\n\
+                    D=M\n"
+                )
+                .expect("Error writing to output");
+
+                // Negate the value in the D register
+                write!(
+                    &mut output_file,
+                    "@0\n\
+                    D=A-D\n"
+                )
+                .expect("Error writing to output");
+
+                // Push the negated value back onto the stack
+                write!(
+                    &mut output_file,
+                    "@SP\n\
+                    A=M\n\
+                    M=D\n\
+                    @SP\n\
+                    M=M+1\n"
+                )
+                .expect("Error writing to output");
             }
             "eq" | "gt" | "lt" => {
                 let jump_instruction = if command == "eq" {
@@ -222,7 +277,7 @@ fn main() {
                         It loads the value from the memory location pointed to by the label (which represents the static variable) into the D register.
                         The value from the D register is then stored onto the stack, and the Stack Pointer (SP) is incremented to point to the next empty slot in the stack.
                         */
-                        let static_label = format!("{}.{}", output_filename, index);
+                        let static_label = format!("{}.{}", static_identifier, index);
                         write!(
                             &mut output_file,
                             "\t@{}\n\
@@ -451,7 +506,7 @@ fn main() {
                         .expect("Error writing to output");
                     }
                     "static" => {
-                        let static_label = format!("{}.{}", output_filename, index);
+                        let static_label = format!("{}.{}", static_identifier, index);
                         // Pop the value from the stack into the D register.
                         // Decrement the Stack Pointer (SP) and access the value at
                         // the top of the stack. The value is then stored in the D register.
