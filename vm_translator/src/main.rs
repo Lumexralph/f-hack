@@ -60,7 +60,7 @@ fn main() {
         write!(&mut output_file, "// {}\n", line).expect("Error writing to output");
 
         match command {
-            "add" => {
+            "add" | "sub" => {
                 /*
                 @SP: This line sets the A-register to the address pointed to by the Stack Pointer (SP). It's essentially telling the computer to access the value at the top of the stack.
 
@@ -72,27 +72,15 @@ fn main() {
 
                 M=D+M: Finally, this line adds the value in the D-register (which holds the second value from the top of the stack) to the value in the memory location pointed to by the A-register (which is the top value of the stack). The result is stored back into the memory location pointed to by the A-register. In essence, this line replaces the two top values with their sum.
                 */
+                let op_symbol = if command == "add" { "+" } else { "-" };
                 write!(
                     &mut output_file,
                     "\t@SP\n\
                     \tAM=M-1\n\
                     \tD=M\n\
                     \tA=A-1\n\
-                    \tM=D+M\n"
-                )
-                .expect("Error writing output");
-            }
-            "sub" => {
-                /*
-                Similar to the add implementation, but instead of adding D to the value at the top of the stack, it subtracts D from the value at the top of the stack.
-                 */
-                write!(
-                    &mut output_file,
-                    "\t@SP\n\
-                    \tAM=M-1\n\
-                    \tD=M\n\
-                    \tA=A-1\n\
-                    \tM=M-D\n"
+                    \tM=D{}M\n",
+                    op_symbol
                 )
                 .expect("Error writing output");
             }
